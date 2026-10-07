@@ -79,12 +79,19 @@ private struct Boom: Error {}
                 while ContinuousClock.now < end { await Task.yield() }
                 return "late"
             },
-            timeout: .milliseconds(100))
+            timeout: .milliseconds(100),
+            timeoutPerCharacter: .zero)
         let start = ContinuousClock.now
         let result = await pipeline.run(raw, context: .init())
         #expect(result.outcome == .timedOut)
         #expect(result.text == raw)
         #expect(ContinuousClock.now - start < .seconds(1))
+    }
+
+    @Test func timeoutScalesWithLengthUpToCap() {
+        let pipeline = PolishPipeline(polisher: nil, timeout: .seconds(2), timeoutPerCharacter: .milliseconds(10), maxTimeout: .seconds(8))
+        #expect(pipeline.timeout(for: String(repeating: "a", count: 100)) == .seconds(3))
+        #expect(pipeline.timeout(for: String(repeating: "a", count: 5000)) == .seconds(8))
     }
 
     @Test func skipsShortAndUnavailable() async {

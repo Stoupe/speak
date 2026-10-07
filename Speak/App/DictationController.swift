@@ -91,6 +91,10 @@ final class DictationController {
             }
         }
         refreshPolisherAvailability()
+        // Load the language model now so the first dictation doesn't pay for it.
+        if polisherAvailability == .available {
+            polisher.prewarm(context: PolishContext())
+        }
     }
 
     // MARK: Permissions

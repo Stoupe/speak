@@ -19,11 +19,27 @@ public struct PolishPipeline: Sendable {
     }
 
     public var polisher: (any TextPolisher)?
+    /// Time allowed for any polish…
     public var timeout: Duration
+    /// …plus this much per character of transcript (longer text takes longer to generate)…
+    public var timeoutPerCharacter: Duration
+    /// …up to this ceiling.
+    public var maxTimeout: Duration
 
-    public init(polisher: (any TextPolisher)?, timeout: Duration = .seconds(2)) {
+    public init(
+        polisher: (any TextPolisher)?,
+        timeout: Duration = .seconds(2),
+        timeoutPerCharacter: Duration = .milliseconds(10),
+        maxTimeout: Duration = .seconds(8)
+    ) {
         self.polisher = polisher
         self.timeout = timeout
+        self.timeoutPerCharacter = timeoutPerCharacter
+        self.maxTimeout = maxTimeout
+    }
+
+    func timeout(for raw: String) -> Duration {
+        min(timeout + timeoutPerCharacter * raw.count, maxTimeout)
     }
 
     public func run(_ raw: String, context: PolishContext) async -> Result {
@@ -38,7 +54,7 @@ public struct PolishPipeline: Sendable {
         if raw.isEmpty || PolishGuard.shouldSkip(raw) { return done(raw, .skippedShort) }
         if case .unavailable(let reason) = polisher.availability() { return done(raw, .unavailable(reason)) }
 
-        let attempt = await withTimeout(timeout) { try await polisher.polish(raw, context: context) }
+        let attempt = await withTimeout(timeout(for: raw)) { try await polisher.polish(raw, context: context) }
         switch attempt {
         case .none:
             return done(raw, .timedOut)

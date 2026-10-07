@@ -58,8 +58,8 @@ Speak.app
 - [ ] Use it daily for a bit
 
 ### Phase 2 — Polish
-- [ ] Confirm Foundation Models is available; measure polish latency on M1
-- [x] `FoundationModelsPolisher` + prompt written; **tune** with `speak-bench cases` once the model is downloaded
+- [x] Confirm Foundation Models is available; measure polish latency on M1
+- [x] `FoundationModelsPolisher` + prompt tuned with `speak-bench cases` (plain text + worked examples)
 - [x] App-aware style (`AppStyle.forBundleID`)
 - [x] Fallbacks: timeout, refusal/error, too-much-rewrite guard; skip polish for short clean phrases
 - [x] Personal dictionary → transcriber contextual strings + polish prompt
@@ -102,3 +102,8 @@ Speak.app
   (keycode 179) that was treated as "another key" → cancel. Now ignored. Also: events are now timestamped on
   the tap thread (main-thread stalls had made a quick tap look like a hold), and Core Audio is warmed at
   launch (first mic start 0.7 s → 0.2 s).
+- 2026-10-08 — Apple Intelligence model downloaded. Real dictations were timing out (4 of 6 > 2 s) with guided
+  generation (~3 s/sentence on M1). Switched to plain-text output + worked examples in the instructions
+  (processed during prewarm on Fn down): typical polish now 0.4–0.9 s. Timeout now 2 s + 10 ms/char (max 8 s);
+  model prewarmed at launch. Known weak spots: code style invents snake_case identifiers; ordinals ("1st")
+  and some mis-hearings ("docks") aren't fixed; email isn't reflowed into paragraphs.

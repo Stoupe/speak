@@ -82,12 +82,16 @@ struct SpeakBench {
 
     static func runCases(_ path: String, context: PolishContext) async throws {
         let cases = try JSONDecoder().decode([Case].self, from: Data(contentsOf: URL(filePath: path)))
-        let pipeline = PolishPipeline(polisher: FoundationModelsPolisher(), timeout: .seconds(10))
+        let polisher = FoundationModelsPolisher()
+        let pipeline = PolishPipeline(polisher: polisher, timeout: .seconds(10))
         var exact = 0
         var total = Duration.zero
         for (index, item) in cases.enumerated() {
             var context = context
             if let style = item.style.flatMap(AppStyle.init(rawValue:)) { context.style = style }
+            // Like the app: prewarm on Fn down, then the user talks for a moment before releasing.
+            polisher.prewarm(context: context)
+            try await Task.sleep(for: .seconds(1.5))
             let result = await pipeline.run(item.raw, context: context)
             total += result.duration
             let match = item.expected.map { $0 == result.text }

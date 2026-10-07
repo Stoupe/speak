@@ -38,22 +38,16 @@ public final class FoundationModelsPolisher: TextPolisher {
             return warm?.context == context ? warm?.session : nil
         } ?? makeSession(context)
 
+        // Plain text, not guided generation: on an M1 the JSON schema roughly triples latency.
         let response = try await session.respond(
             to: PolishPrompt.prompt(raw),
-            generating: CleanedTranscript.self,
             options: GenerationOptions(
                 samplingMode: .greedy,
                 maximumResponseTokens: max(64, raw.count / 2 + 64)))
-        return response.content.text
+        return PolishPrompt.clean(response.content)
     }
 
     private func makeSession(_ context: PolishContext) -> LanguageModelSession {
         LanguageModelSession(model: model, instructions: PolishPrompt.instructions(context))
     }
-}
-
-@Generable
-struct CleanedTranscript {
-    @Guide(description: "The cleaned-up transcript, and nothing else.")
-    var text: String
 }
