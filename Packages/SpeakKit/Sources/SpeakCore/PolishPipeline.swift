@@ -55,7 +55,7 @@ public struct PolishPipeline: Sendable {
 
 /// Returns the operation's result, or nil if it didn't finish within `timeout`.
 /// Unlike a task group, this returns as soon as the deadline passes even if the operation ignores cancellation.
-func withTimeout<T: Sendable>(
+public func withTimeout<T: Sendable>(
     _ timeout: Duration,
     operation: @escaping @Sendable () async throws -> T
 ) async -> Swift.Result<T, any Error>? {

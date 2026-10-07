@@ -21,7 +21,6 @@ final class PillModel {
     private(set) var levels = [Float](repeating: 0, count: PillModel.barCount)
 
     @ObservationIgnored var onCancel: () -> Void = {}
-    @ObservationIgnored var onResetPosition: () -> Void = {}
 
     func push(_ newLevels: [Float]) {
         guard !newLevels.isEmpty else { return }

@@ -9,6 +9,8 @@ public enum TriggerEvent: Equatable, Sendable {
     case escape
     /// The double-tap window opened by a short tap has elapsed.
     case tapWindowElapsed(id: Int)
+    /// The recording hit its maximum length.
+    case timeLimitReached
 }
 
 /// What the controller should do in response to an event.
@@ -32,6 +34,7 @@ public enum TriggerAction: Equatable, Sendable {
 /// - A single short tap → cancelled (it was probably an accident).
 /// - Fn + another key while holding → cancelled (it was a shortcut).
 /// - Escape at any point → cancelled.
+/// - Hitting the time limit → committed (never record forever if a key-up is lost).
 public struct TriggerStateMachine: Sendable {
     public enum State: Equatable, Sendable {
         case idle
@@ -93,8 +96,16 @@ public struct TriggerStateMachine: Sendable {
             state = .idle
             return [.cancel]
 
-        case (.idle, .escape):
+        case (.idle, .escape), (.idle, .timeLimitReached):
             return []
+
+        case (.awaitingSecondTap, .timeLimitReached):
+            state = .idle
+            return [.cancel]
+
+        case (_, .timeLimitReached):
+            state = .idle
+            return [.commit]
 
         case (_, .escape):
             state = .idle

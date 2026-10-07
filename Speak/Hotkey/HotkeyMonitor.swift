@@ -4,24 +4,34 @@ import SpeakCore
 
 /// Watches the Fn key system-wide with a CGEventTap. Requires Accessibility permission.
 ///
-/// The tap runs on the main run loop, so the callback is already on the main thread.
-@MainActor
-final class HotkeyMonitor {
-    /// Receives Fn / other-key / escape events.
-    var onEvent: ((TriggerEvent) -> Void)?
+/// The tap runs on its own thread so that main-thread work (starting the mic, Accessibility queries)
+/// never delays keystrokes system-wide. Events are delivered to the main queue.
+final class HotkeyMonitor: @unchecked Sendable {
+    // `@unchecked`: `onEvent` is set once before `start()`; everything mutable afterwards is in `state`.
+
+    /// Receives Fn / other-key / escape events on the main queue.
+    var onEvent: (@MainActor (TriggerEvent) -> Void)?
+
+    private struct State {
+        var tap: CFMachPort?
+        var fnIsDown = false
+        var swallowsEscape = false
+    }
+
+    private let state = Locked(State())
+
+    var isRunning: Bool { state.withLock { $0.tap != nil } }
+
     /// While true, Escape is swallowed (so it doesn't also close a dialog in the frontmost app).
-    var swallowsEscape = false
-
-    private var tap: CFMachPort?
-    private var source: CFRunLoopSource?
-    private var fnIsDown = false
-
-    var isRunning: Bool { tap != nil }
+    var swallowsEscape: Bool {
+        get { state.withLock { $0.swallowsEscape } }
+        set { state.withLock { $0.swallowsEscape = newValue } }
+    }
 
     /// Returns false if the tap couldn't be created (usually missing Accessibility permission).
     @discardableResult
     func start() -> Bool {
-        guard tap == nil else { return true }
+        if isRunning { return true }
         let mask = (1 << CGEventType.flagsChanged.rawValue) | (1 << CGEventType.keyDown.rawValue)
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -31,54 +41,67 @@ final class HotkeyMonitor {
             callback: hotkeyTapCallback,
             userInfo: Unmanaged.passUnretained(self).toOpaque())
         else { return false }
+        state.withLock { $0.tap = tap }
 
-        let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-        self.tap = tap
-        self.source = source
+        // CF types aren't Sendable; both are handed to the tap thread once and not touched here again.
+        nonisolated(unsafe) let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
+        nonisolated(unsafe) let threadTap = tap
+        let thread = Thread {
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
+            CGEvent.tapEnable(tap: threadTap, enable: true)
+            CFRunLoopRun()
+        }
+        thread.name = "Speak.HotkeyTap"
+        thread.qualityOfService = .userInteractive
+        thread.start()
         return true
     }
 
-    func stop() {
-        if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
-        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
-        tap = nil
-        source = nil
-        fnIsDown = false
-    }
-
-    /// Returns true to let the event through, false to swallow it.
+    /// Runs on the tap thread. Returns true to let the event through, false to swallow it.
     fileprivate func handle(_ event: TapEvent) -> Bool {
-        let type = event.type
-        switch type {
+        switch event.type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             // macOS disables slow or interrupted taps; turn it straight back on.
-            if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+            let missedFnUp = state.withLock { state -> Bool in
+                if let tap = state.tap { CGEvent.tapEnable(tap: tap, enable: true) }
+                // Key-ups may have been missed while it was off.
+                let fnHeld = CGEventSource.flagsState(.combinedSessionState).contains(.maskSecondaryFn)
+                guard state.fnIsDown, !fnHeld else { return false }
+                state.fnIsDown = false
+                return true
+            }
+            if missedFnUp { deliver(.fnUp) }
             return true
 
         case .flagsChanged:
             guard event.keyCode == Self.fnKeyCode else { return true }
             let down = event.flags.contains(.maskSecondaryFn)
-            guard down != fnIsDown else { return true }
-            fnIsDown = down
-            onEvent?(down ? .fnDown : .fnUp)
+            let changed = state.withLock { state -> Bool in
+                guard down != state.fnIsDown else { return false }
+                state.fnIsDown = down
+                return true
+            }
+            if changed { deliver(down ? .fnDown : .fnUp) }
             return true
 
         case .keyDown:
             // Ignore our own synthetic ⌘V and other injected events.
             guard event.sourcePID != Int64(getpid()) else { return true }
             if event.keyCode == Self.escapeKeyCode {
-                // Read before dispatching: handling Escape ends the dictation and clears the flag.
-                let swallow = swallowsEscape
-                onEvent?(.escape)
-                return !swallow
+                deliver(.escape)
+                return !swallowsEscape
             }
-            onEvent?(.otherKey)
+            deliver(.otherKey)
             return true
 
         default:
             return true
+        }
+    }
+
+    private func deliver(_ event: TriggerEvent) {
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated { self?.onEvent?(event) }
         }
     }
 
@@ -96,8 +119,7 @@ private func hotkeyTapCallback(
         keyCode: event.getIntegerValueField(.keyboardEventKeycode),
         flags: event.flags,
         sourcePID: event.getIntegerValueField(.eventSourceUnixProcessID))
-    let passThrough = MainActor.assumeIsolated { monitor.handle(tapEvent) }
-    return passThrough ? Unmanaged.passUnretained(event) : nil
+    return monitor.handle(tapEvent) ? Unmanaged.passUnretained(event) : nil
 }
 
 /// The parts of a CGEvent the monitor needs, as plain values.

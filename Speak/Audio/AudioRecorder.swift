@@ -13,16 +13,19 @@ final class AudioRecorder {
 
     /// A fresh engine per recording picks up device changes (AirPods connecting, etc.) without bookkeeping.
     private var engine: AVAudioEngine?
+    private var recordingID = 0
 
     /// - Parameters:
     ///   - deviceUID: Core Audio device UID, or nil for the system default input.
     ///   - onLevels: Normalized (0…1) loudness, several values per audio buffer. Called on the audio thread.
+    /// - Returns: An ID to pass to `stop(_:)`.
+    @discardableResult
     func start(
         deviceUID: String?,
         sink: any TranscriptionSession,
         onLevels: @escaping @Sendable ([Float]) -> Void
-    ) throws {
-        stop()
+    ) throws -> Int {
+        stopCurrent()
         let engine = AVAudioEngine()
         let input = engine.inputNode
 
@@ -50,9 +53,17 @@ final class AudioRecorder {
             throw error
         }
         self.engine = engine
+        recordingID += 1
+        return recordingID
     }
 
-    func stop() {
+    /// Stops the recording with this ID, if it's still the current one.
+    func stop(_ id: Int) {
+        guard id == recordingID else { return }
+        stopCurrent()
+    }
+
+    private func stopCurrent() {
         guard let engine else { return }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()

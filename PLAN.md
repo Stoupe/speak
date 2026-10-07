@@ -11,7 +11,7 @@ Personal tool: no onboarding, no accounts, no distribution. English only.
 |---|---|---|
 | Platform | macOS 27, Xcode 27, Swift 6 (strict concurrency), SwiftUI + AppKit where needed | Native, minimal |
 | App type | Menu bar only (`LSUIElement`), not sandboxed | Event taps and synthetic keystrokes don't work in the sandbox |
-| Project | Plain Xcode project with buildable (folder-synced) groups | No extra tooling |
+| Project | Plain Xcode project with buildable (folder-synced) groups + local `SpeakKit` package | No extra tooling; core logic testable with `swift test` |
 | Signing | Existing "Apple Development" identity | Accessibility/Input Monitoring permission survives rebuilds |
 | Speech → text | Apple `SpeechAnalyzer` / `SpeechTranscriber` first; FluidAudio (Nemotron 3.5 / Parakeet) as a later bake-off | Built in, streams while you talk, no dependencies |
 | Polish | Apple Foundation Models (`LanguageModelSession`, guided generation) | On-device, system-managed memory (important on 8 GB) |
@@ -37,40 +37,42 @@ Speak.app
 ├─ ContextProvider      frontmost app → style hint (chat / email / code / default)
 ├─ TextInserter         clipboard save → set → ⌘V → restore
 ├─ DictationController  @Observable @MainActor coordinator
-├─ HistoryStore         SwiftData, last ~100 items (text only, no audio)
+├─ History              JSON file in Application Support, last 100 items (text only, no audio)
 └─ UI                   PillPanel (NSPanel + SwiftUI glass), MenuBarExtra, Settings form
 ```
 
 ## Progress
 
 ### Phase 0 — Scaffold + spikes
-- [ ] `git init`, `.gitignore`
-- [ ] Xcode project: macOS 27, non-sandboxed, Swift 6, menu bar only, Apple Development signing
+- [x] `git init`, `.gitignore`
+- [x] Xcode project: macOS 27, non-sandboxed, Swift 6, menu bar only, Apple Development signing
 - [ ] Set System Settings → Keyboard → "Press 🌐 key to: Do Nothing" (manual)
-- [ ] Spike: event tap logs Fn down/up (incl. fullscreen apps, after sleep/wake)
-- [ ] Spike: paste a fixed string into Notes, Safari, Slack, VS Code, Terminal; clipboard restored
+- [x] Event tap for Fn written (`HotkeyMonitor`) — **needs hands-on test** (fullscreen apps, sleep/wake)
+- [x] Paste + clipboard restore written (`TextInserter`) — **needs hands-on test** in Notes, Safari, Slack, VS Code, Terminal
 
 ### Phase 1 — Raw dictation end to end
-- [ ] Hold Fn → record → `SpeechTranscriber` (streaming) → paste raw text
-- [ ] Pill panel with live waveform (non-activating, all Spaces, over fullscreen)
-- [ ] Pill draggable + remembered position + double-click reset
-- [ ] Menu bar item (status, Quit)
+- [x] Hold Fn → record → `SpeechTranscriber` (streaming) → paste (verified headlessly via `speak-bench`)
+- [x] Pill panel with live waveform (non-activating, all Spaces, over fullscreen) — needs visual check
+- [x] Pill draggable + remembered position + double-click reset — needs visual check
+- [x] Menu bar item (status, recent, paste last, polish toggle, settings, quit)
 - [ ] Use it daily for a bit
 
 ### Phase 2 — Polish
 - [ ] Confirm Foundation Models is available; measure polish latency on M1
-- [ ] `FoundationModelsPolisher`: filler removal, self-corrections, punctuation/paragraphs, spoken lists
-- [ ] App-aware style via `ContextProvider`
-- [ ] Fallbacks: timeout, refusal/error, too-much-rewrite guard; skip polish for short clean phrases
-- [ ] Personal dictionary → transcriber custom vocabulary + polish prompt
-- [ ] Test target: ~20 raw → expected cases for prompt tuning
+- [x] `FoundationModelsPolisher` + prompt written; **tune** with `speak-bench cases` once the model is downloaded
+- [x] App-aware style (`AppStyle.forBundleID`)
+- [x] Fallbacks: timeout, refusal/error, too-much-rewrite guard; skip polish for short clean phrases
+- [x] Personal dictionary → transcriber contextual strings + polish prompt
+- [x] `Bench/polish-cases.json` (15 cases) + `speak-bench cases`
 
 ### Phase 3 — Feel
-- [ ] Double-tap Fn → hands-free; Fn again to stop
-- [ ] Esc cancels; Fn + other key cancels
-- [ ] Start/stop sounds
-- [ ] History in menu bar (click to copy, "Paste last")
-- [ ] Settings window: microphone, dictionary, launch at login (`SMAppService`)
+- [x] Double-tap Fn → hands-free; Fn again to stop
+- [x] Esc cancels; Fn + other key cancels
+- [x] Start/stop sounds (toggle in Settings)
+- [x] History in menu bar (click to copy, "Paste last")
+- [x] Settings window: microphone, dictionary, launch at login (`SMAppService`)
+- [x] Smart spacing: add a leading space when the caret follows a non-space character (read via AX)
+- [ ] Mid-sentence capitalization ("and Hey…" when dictating after existing text) — decide after hands-on use
 - [ ] Optional: FluidAudio engine + bake-off on ~20 of my own clips (WER + latency), keep the winner
 
 ### Later / maybe
@@ -82,3 +84,10 @@ Speak.app
 
 - 2026-10-07 — Plan agreed. VS Code 1.139 uses `nemotron-3.5-asr-streaming-0.6b` (ONNX via Foundry
   Local); CoreML conversions exist from FluidInference.
+- 2026-10-07 — Scaffold built (app + SpeakKit). 19 unit tests pass. `speak-bench` transcription on synthetic
+  speech: ~0.2s from end of audio to final text when streamed in real time; first-run cold start was 1.4s,
+  fixed by warming the model at launch. Foundation Models still `modelNotReady` (downloading).
+- 2026-10-07 — Independent review (2 rounds) fixed: event tap moved to its own thread; Fn state resync when
+  macOS re-enables the tap; 5-min recording cap; finish() timeout; overlapping dictations allowed with pastes
+  kept in spoken order; serialized clipboard paste/restore; 200 ms tail capture; paste skipped (copied instead)
+  if the frontmost app changed; notices queued until visible. Still needs hands-on: pill double-click reset.

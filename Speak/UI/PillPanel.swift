@@ -29,11 +29,14 @@ final class PillPanel: NSPanel, NSWindowDelegate {
         animationBehavior = .none
         delegate = self
 
-        let host = FirstMouseHostingView(rootView: PillView(model: model))
+        let host = PillHostingView(rootView: PillView(model: model))
         host.sizingOptions = []
+        host.onDoubleClick = { [weak self] in
+            // In hands-free the pill has a ✕ button; a quick double-click there shouldn't also move the pill.
+            guard let self, !self.model.handsFree else { return }
+            self.resetPosition()
+        }
         contentView = host
-
-        model.onResetPosition = { [weak self] in self?.resetPosition() }
     }
 
     override var canBecomeKey: Bool { false }
@@ -78,7 +81,11 @@ final class PillPanel: NSPanel, NSWindowDelegate {
             isPositioning = true
             animator().setFrameOrigin(defaultOrigin())
         } completionHandler: { [weak self] in
-            MainActor.assumeIsolated { self?.isPositioning = false }
+            MainActor.assumeIsolated {
+                self?.isPositioning = false
+                // A trailing windowDidMove may have re-saved the default position; it isn't a user choice.
+                UserDefaults.standard.removeObject(forKey: Self.originKey)
+            }
         }
     }
 
@@ -103,7 +110,18 @@ final class PillPanel: NSPanel, NSWindowDelegate {
     }
 }
 
-/// Lets the first click land on the pill even though its window is never key.
-private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+private final class PillHostingView<Content: View>: NSHostingView<Content> {
+    var onDoubleClick: () -> Void = {}
+
+    /// Lets the first click land on the pill even though its window is never key.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    /// Caught here rather than in SwiftUI: the window-drag gesture would otherwise swallow the second click.
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 {
+            onDoubleClick()
+            return
+        }
+        super.mouseDown(with: event)
+    }
 }

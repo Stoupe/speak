@@ -23,9 +23,17 @@ final class DictationController {
         case failed(String)
     }
 
+    /// Longest single dictation; also the safety net if a Fn key-up is ever lost.
+    static let maxRecording: Duration = .seconds(300)
+    /// Keep the mic open briefly after release: people let go of Fn on the last syllable.
+    static let tailCapture: Duration = .milliseconds(200)
+
     private(set) var modelState = ModelState.loading
     private(set) var hasAccessibility = false
     private(set) var hasMicrophone = true
+    private(set) var isRecording = false
+    private(set) var history = History(fileURL: History.defaultURL)
+    private(set) var polisherAvailability: PolisherAvailability = .available
 
     var status: Status {
         if !hasMicrophone { return .needsMicrophone }
@@ -36,9 +44,6 @@ final class DictationController {
         case .failed(let message): return .failed(message)
         }
     }
-    private(set) var isRecording = false
-    private(set) var history = History(fileURL: History.defaultURL)
-    private(set) var polisherAvailability: PolisherAvailability = .available
 
     let pill = PillModel()
 
@@ -49,11 +54,24 @@ final class DictationController {
     @ObservationIgnored private let inserter = TextInserter()
     @ObservationIgnored private lazy var panel = PillPanel(model: pill)
     @ObservationIgnored private var machine = TriggerStateMachine()
-    @ObservationIgnored private var session: (any TranscriptionSession)?
-    @ObservationIgnored private var target: (bundleID: String?, name: String?)
-    /// Set while a finished dictation is being transcribed/polished/pasted.
-    @ObservationIgnored private var isFinishing = false
-    @ObservationIgnored private var noticeTask: Task<Void, Never>?
+    @ObservationIgnored private var current: Recording?
+    /// Dictations released but not yet pasted. A new one can start while these finish.
+    @ObservationIgnored private var finishingCount = 0
+    /// The most recent finishing dictation; each waits for the previous so pastes keep spoken order.
+    @ObservationIgnored private var lastFinish: Task<Void, Never>?
+    /// A short message for the pill. Its countdown starts only once it's actually on screen, so a failure
+    /// that happens while you're recording the next dictation is still shown afterwards.
+    @ObservationIgnored private var notice: (message: String, dismissal: Task<Void, Never>?)?
+
+    private struct Recording {
+        var session: any TranscriptionSession
+        var recorderID: Int
+        var appPID: pid_t?
+        var appBundleID: String?
+        var appName: String?
+        var startedAt: ContinuousClock.Instant
+        var timeLimit: Task<Void, Never>
+    }
 
     init() {
         pill.onCancel = { [weak self] in self?.handle(.escape) }
@@ -111,8 +129,6 @@ final class DictationController {
     // MARK: Trigger handling
 
     private func handle(_ event: TriggerEvent) {
-        // One dictation at a time: ignore the key while the previous one is still being processed.
-        if isFinishing, !machine.isActive { return }
         for action in machine.handle(event, at: ProcessInfo.processInfo.systemUptime) {
             perform(action)
         }
@@ -131,7 +147,7 @@ final class DictationController {
                 handle(.tapWindowElapsed(id: id))
             }
         case .commit:
-            finishRecording()
+            commitRecording()
         case .cancel:
             cancelRecording()
         }
@@ -145,82 +161,126 @@ final class DictationController {
             showNotice(statusMessage)
             return
         }
-        let app = NSWorkspace.shared.frontmostApplication
-        target = (app?.bundleIdentifier, app?.localizedName)
 
+        let session: any TranscriptionSession
+        let recorderID: Int
         do {
-            let session = try transcriber.begin(vocabulary: Preferences.dictionaryWords)
+            session = try transcriber.begin(vocabulary: Preferences.dictionaryWords)
+        } catch {
+            machine.reset()
+            showNotice("Speech model isn't ready")
+            return
+        }
+        do {
             let pill = pill
-            try recorder.start(
+            recorderID = try recorder.start(
                 deviceUID: UserDefaults.standard.string(forKey: Preferences.microphoneUID),
                 sink: session,
                 onLevels: { levels in Task { @MainActor in pill.push(levels) } })
-            self.session = session
         } catch {
+            Task { await session.cancel() }
             machine.reset()
             showNotice("Couldn't start microphone")
             return
         }
 
+        let app = NSWorkspace.shared.frontmostApplication
+        current = Recording(
+            session: session,
+            recorderID: recorderID,
+            appPID: app?.processIdentifier,
+            appBundleID: app?.bundleIdentifier,
+            appName: app?.localizedName,
+            startedAt: .now,
+            timeLimit: Task {
+                try? await Task.sleep(for: Self.maxRecording)
+                guard !Task.isCancelled else { return }
+                handle(.timeLimitReached)
+            })
+
         isRecording = true
-        noticeTask?.cancel()
         pill.resetLevels()
         pill.handsFree = false
-        pill.phase = .listening
-        showPill()
+        updatePill()
         playSound("Tink")
         if UserDefaults.standard.bool(forKey: Preferences.polishEnabled) {
-            polisher.prewarm(context: polishContext())
+            polisher.prewarm(context: polishContext(for: current!))
         }
     }
 
     private func cancelRecording() {
-        recorder.stop()
-        isRecording = false
-        let session = session
-        self.session = nil
-        Task { await session?.cancel() }
-        hidePill()
+        guard let recording = endRecording() else { return }
+        recorder.stop(recording.recorderID)
+        Task { await recording.session.cancel() }
+        updatePill()
     }
 
-    private func finishRecording() {
-        recorder.stop()
-        isRecording = false
-        guard let session else { return hidePill() }
-        self.session = nil
-        isFinishing = true
-        pill.phase = .processing
-        pill.handsFree = false
+    private func commitRecording() {
+        guard let recording = endRecording() else { return }
         playSound("Pop")
 
-        let context = polishContext()
-        let appName = target.name
+        let context = polishContext(for: recording)
         let polishEnabled = UserDefaults.standard.bool(forKey: Preferences.polishEnabled)
         let pipeline = PolishPipeline(polisher: polishEnabled ? polisher : nil)
+        // Generous: finishing normally takes well under a second, but long dictations have more to finalize.
+        let finishTimeout = Duration.seconds(5) + (ContinuousClock.now - recording.startedAt) / 10
+        let previous = lastFinish
 
-        Task {
-            defer { isFinishing = false }
-            let raw: String
-            do {
-                raw = try await session.finish()
-            } catch {
-                showNotice("Couldn't transcribe")
-                return
+        finishingCount += 1
+        updatePill()
+
+        lastFinish = Task {
+            defer {
+                finishingCount -= 1
+                updatePill()
             }
-            guard !raw.isEmpty else { return hidePill() }
+            try? await Task.sleep(for: Self.tailCapture)
+            recorder.stop(recording.recorderID)
+
+            let session = recording.session
+            let raw: String
+            switch await withTimeout(finishTimeout, operation: { try await session.finish() }) {
+            case .some(.success(let text)):
+                raw = text
+            case .some(.failure):
+                return showNotice("Couldn't transcribe")
+            case .none:
+                Task { await session.cancel() }
+                return showNotice("Transcription timed out")
+            }
+            guard !raw.isEmpty else { return }
 
             let result = await pipeline.run(raw, context: context)
             refreshPolisherAvailability()
-            hidePill()
-            await inserter.insert(result.text)
-            history.add(HistoryItem(raw: raw, text: result.text, appName: appName))
+
+            // Paste in the order dictations were spoken.
+            await previous?.value
+            history.add(HistoryItem(raw: raw, text: result.text, appName: recording.appName))
+
+            // Don't paste into a different app than the one you were dictating into.
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == recording.appPID else {
+                inserter.copy(result.text)
+                return showNotice("App changed — copied instead")
+            }
+            let text = FocusedText.withLeadingSpaceIfNeeded(result.text, after: FocusedText.characterBeforeCaret())
+            await inserter.insert(text)
         }
     }
 
-    private func polishContext() -> PolishContext {
+    /// Clears the current recording and its timer; the caller stops the mic and session.
+    private func endRecording() -> Recording? {
+        guard let recording = current else { return nil }
+        recording.timeLimit.cancel()
+        current = nil
+        isRecording = false
+        pill.handsFree = false
+        return recording
+    }
+
+    private func polishContext(for recording: Recording) -> PolishContext {
         PolishContext(
-            appName: target.name,
-            style: AppStyle.forBundleID(target.bundleID),
+            appName: recording.appName,
+            style: AppStyle.forBundleID(recording.appBundleID),
             vocabulary: Preferences.dictionaryWords)
     }
 
@@ -241,25 +301,35 @@ final class DictationController {
 
     // MARK: Pill
 
-    private func showPill() {
+    /// Single source of truth for what the pill shows: recording beats processing beats a notice.
+    private func updatePill() {
+        if isRecording {
+            pill.phase = .listening
+        } else if finishingCount > 0 {
+            pill.phase = .processing
+        } else if let notice {
+            pill.phase = .notice(notice.message)
+            if notice.dismissal == nil {
+                self.notice?.dismissal = Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    guard !Task.isCancelled else { return }
+                    self.notice = nil
+                    updatePill()
+                }
+            }
+        } else {
+            pill.isVisible = false
+            panel.hide()
+            return
+        }
         pill.isVisible = true
         panel.show()
     }
 
-    private func hidePill() {
-        pill.isVisible = false
-        panel.hide()
-    }
-
     private func showNotice(_ message: String) {
-        pill.phase = .notice(message)
-        showPill()
-        noticeTask?.cancel()
-        noticeTask = Task {
-            try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled else { return }
-            hidePill()
-        }
+        notice?.dismissal?.cancel()
+        notice = (message, nil)
+        updatePill()
     }
 
     var statusMessage: String {

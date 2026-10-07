@@ -56,4 +56,17 @@ import Testing
         #expect(machine.handle(.tapWindowElapsed(id: 1), at: 1.2) == [])
         #expect(machine.handle(.tapWindowElapsed(id: 2), at: 1.4) == [.cancel])
     }
+
+    @Test mutating func timeLimitCommitsHeldOrHandsFreeRecording() {
+        _ = machine.handle(.fnDown, at: 0)
+        #expect(machine.handle(.timeLimitReached, at: 300) == [.commit])
+        #expect(machine.state == .idle)
+        #expect(machine.handle(.timeLimitReached, at: 301) == [])
+
+        _ = machine.handle(.fnDown, at: 400)
+        _ = machine.handle(.fnUp, at: 400.1)
+        _ = machine.handle(.fnDown, at: 400.2)
+        _ = machine.handle(.fnUp, at: 400.3)
+        #expect(machine.handle(.timeLimitReached, at: 700) == [.commit])
+    }
 }

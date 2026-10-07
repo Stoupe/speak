@@ -35,7 +35,6 @@ struct PillView: View {
         .animation(.smooth(duration: 0.2), value: model.handsFree)
         .animation(.smooth(duration: 0.2), value: model.phase)
         .gesture(WindowDragGesture())
-        .simultaneousGesture(TapGesture(count: 2).onEnded { model.onResetPosition() })
         // Leave room around the capsule for its shadow inside the transparent panel.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
