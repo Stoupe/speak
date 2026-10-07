@@ -43,10 +43,14 @@ final class TextInserter {
         provider.armed = true
         postCommandV()
 
-        let wasRead = await provider.waitForRead(timeout: .seconds(3))
+        // If we see the read, restore shortly after. If we can't (something such as Universal Clipboard read the
+        // text before ⌘V, and macOS then serves the cached copy without asking us), fall back to a safe delay.
+        let wasRead = await provider.waitForRead(timeout: .milliseconds(1500))
         log.info("paste read=\(wasRead) after \(ContinuousClock.now - start, privacy: .public)")
-        // Grace in case the app reads more than once, and a floor in case the first read wasn't the app's.
-        try? await Task.sleep(for: max(.milliseconds(200), .milliseconds(500) - (ContinuousClock.now - start)))
+        let restoreAt = wasRead
+            ? max(ContinuousClock.now + .milliseconds(200), start + .milliseconds(500))
+            : start + .milliseconds(1500)
+        try? await Task.sleep(until: restoreAt)
         // If something else wrote to the clipboard meanwhile, leave it alone.
         guard pasteboard.changeCount == ourChangeCount else { return }
         restore(saved, to: pasteboard)
@@ -116,7 +120,8 @@ private final class PasteProvider: NSObject, NSPasteboardItemDataProvider, @unch
         readContinuation.finish()
     }
 
-    /// True once the text has been read; false if nobody read it within `timeout`.
+    /// True once the text has been read after ⌘V; false if that wasn't observed within `timeout`
+    /// (including when the stream ends because macOS cached an earlier read).
     func waitForRead(timeout: Duration) async -> Bool {
         let reads = reads
         let result = await withTimeout(timeout) {
