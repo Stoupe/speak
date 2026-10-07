@@ -190,8 +190,7 @@ final class SetupWindowController {
 
     func show(controller: DictationController) {
         if let window {
-            NSApp.activate()
-            window.makeKeyAndOrderFront(nil)
+            bringToFront(window)
             return
         }
         let status = SetupStatus()
@@ -200,7 +199,10 @@ final class SetupWindowController {
             controller.refreshPermissions()
             self?.window?.close()
         }
-        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+        let hosting = NSHostingController(rootView: view)
+        let window = NSWindow(contentViewController: hosting)
+        // Size to the content first so `center()` centres the real window, not a placeholder size.
+        window.setContentSize(hosting.view.fittingSize)
         window.title = "Set up Speak"
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
@@ -211,7 +213,14 @@ final class SetupWindowController {
         NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.window = nil }
         }
+        bringToFront(window)
+    }
+
+    /// A menu bar app isn't the active app, and macOS may decline `activate()`, so also order the window
+    /// front regardless — otherwise it opens hidden behind whatever you're using.
+    private func bringToFront(_ window: NSWindow) {
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
     }
 }
