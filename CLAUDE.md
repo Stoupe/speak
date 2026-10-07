@@ -20,10 +20,16 @@ swift run speak-bench transcribe --realtime /path/to/clip.aiff
 swift run speak-bench cases ../../Bench/polish-cases.json
 # App build
 xcodebuild -project Speak.xcodeproj -scheme Speak -derivedDataPath build/DerivedData build
+# Install the Release build to /Applications and relaunch
+Tools/install.sh
+# Shareable build: dry run (local only), then the real thing (asks before contacting Apple)
+Tools/release.sh --dry-run
+Tools/release.sh --version 0.3
 ```
 
 ## Rules
 - The user works on this Mac: don't launch Speak.app, post keyboard events, or open windows unless asked.
 - Signing uses the "Apple Development" identity (team V4TSTMTS4F) so TCC permissions survive rebuilds.
+- Never run `Tools/release.sh` without `--dry-run` unless the user asks: it contacts Apple (Developer ID, notarization).
 - Engines stay behind `Transcriber` / `TextPolisher` protocols; don't add cloud code until planned.
 - Check SDK `.swiftinterface` files for macOS 26/27 APIs rather than guessing.
