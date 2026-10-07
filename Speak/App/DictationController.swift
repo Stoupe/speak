@@ -53,6 +53,7 @@ final class DictationController {
     @ObservationIgnored private let recorder = AudioRecorder()
     @ObservationIgnored private let inserter = TextInserter()
     @ObservationIgnored private lazy var panel = PillPanel(model: pill)
+    @ObservationIgnored private let setupWindow = SetupWindowController()
     @ObservationIgnored private var machine = TriggerStateMachine()
     @ObservationIgnored private var current: Recording?
     /// Dictations released but not yet pasted. A new one can start while these finish.
@@ -84,9 +85,9 @@ final class DictationController {
 
     func launch() {
         recorder.warmUp()
+        refreshPermissions()
+        startHotkeys()
         Task {
-            await requestMicrophone()
-            startHotkeys()
             do {
                 try await transcriber.prepare()
                 modelState = .ready
@@ -99,41 +100,38 @@ final class DictationController {
         if polisherAvailability == .available {
             polisher.prewarm(context: PolishContext())
         }
+        // Permissions are requested from the setup window (with an explanation), not with bare system prompts.
+        let status = SetupStatus()
+        if !UserDefaults.standard.bool(forKey: Preferences.setupCompleted) || !status.requiredStepsDone {
+            showSetup()
+        }
     }
 
     // MARK: Permissions
 
-    private func requestMicrophone() async {
-        hasMicrophone = await AVAudioApplication.requestRecordPermission()
+    func showSetup() {
+        setupWindow.show(controller: self)
     }
 
-    /// Installs the Fn tap, prompting for Accessibility and polling until it's granted.
+    func refreshPermissions() {
+        hasMicrophone = AVAudioApplication.shared.recordPermission == .granted
+        hasAccessibility = AXIsProcessTrusted() && hotkeys.isRunning
+    }
+
+    /// Installs the key tap, polling until Accessibility has been granted.
     private func startHotkeys() {
-        // Fn arrives as a modifier change with Accessibility alone; Escape and other keys (used to cancel)
-        // are only delivered to the tap with Input Monitoring.
-        let canListen = CGPreflightListenEventAccess()
-        log.info("input monitoring: \(canListen), accessibility: \(AXIsProcessTrusted())")
-        if !canListen { CGRequestListenEventAccess() }
-        if hotkeys.start() {
-            hasAccessibility = true
-            return
-        }
-        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-        AXIsProcessTrustedWithOptions(options)
         Task {
             while !hotkeys.start() {
-                try? await Task.sleep(for: .seconds(2))
+                try? await Task.sleep(for: .seconds(1))
+            }
+            // Modifier keys arrive with Accessibility alone; other keys (used to cancel) may also need
+            // Input Monitoring, which macOS normally grants alongside. Ask only if it's actually missing.
+            if !CGPreflightListenEventAccess() {
+                log.info("input monitoring missing; requesting")
+                CGRequestListenEventAccess()
             }
             hasAccessibility = true
         }
-    }
-
-    func openAccessibilitySettings() {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-    }
-
-    func openMicrophoneSettings() {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!)
     }
 
     func refreshPolisherAvailability() {
@@ -173,7 +171,7 @@ final class DictationController {
 
     private func startRecording() {
         // Permission may have been granted in System Settings since launch.
-        if !hasMicrophone { hasMicrophone = AVAudioApplication.shared.recordPermission == .granted }
+        refreshPermissions()
         guard status == .ready else {
             log.error("not ready: \(self.statusMessage, privacy: .public)")
             machine.reset()

@@ -39,6 +39,14 @@ struct MenuContent: View {
         }
         .keyboardShortcut(",")
         Divider()
+        Button("About Speak") {
+            NSApp.activate()
+            NSApp.orderFrontStandardAboutPanel(options: [
+                .credits: NSAttributedString(
+                    string: "Dictation that stays on your Mac.",
+                    attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.secondaryLabelColor]),
+            ])
+        }
         Button("Quit Speak") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }
@@ -46,10 +54,8 @@ struct MenuContent: View {
     @ViewBuilder
     private var statusSection: some View {
         switch controller.status {
-        case .needsAccessibility:
-            Button("Grant Accessibility Access…") { controller.openAccessibilitySettings() }
-        case .needsMicrophone:
-            Button("Grant Microphone Access…") { controller.openMicrophoneSettings() }
+        case .needsAccessibility, .needsMicrophone:
+            Button("Finish Setting Up Speak…") { controller.showSetup() }
         default:
             Text(controller.statusMessage)
         }
