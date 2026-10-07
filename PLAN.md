@@ -85,8 +85,10 @@ Speak.app
 - [x] History: ⌥ to copy the original transcript
 - [x] About panel, version 0.2, README
 - [ ] Hands-on test of all of the above
-- [ ] Developer ID signing (needs a Developer ID Application certificate — ask before creating)
-- [ ] Notarization (uploads to Apple's automated check — ask before submitting)
+- [x] Hardened Runtime for Release builds (+ audio-input entitlement)
+- [ ] Developer ID signing — when sharing: Xcode → Product → Archive → Distribute App → Direct Distribution
+      (creates the Developer ID certificate; back it up afterwards)
+- [ ] Notarization — done by the same Direct Distribution flow; only when actually sharing
 
 ### Later / maybe
 - [ ] Cloud engines

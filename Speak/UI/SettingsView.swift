@@ -53,7 +53,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 440, height: 560)
+        .frame(width: 440, height: 615)
         .onAppear {
             microphones = AudioDevices.inputDevices()
             controller.refreshPolisherAvailability()
