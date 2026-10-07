@@ -47,13 +47,13 @@ Speak.app
 - [x] `git init`, `.gitignore`
 - [x] Xcode project: macOS 27, non-sandboxed, Swift 6, menu bar only, Apple Development signing
 - [ ] Set System Settings → Keyboard → "Press 🌐 key to: Do Nothing" (manual)
-- [x] Event tap for Fn written (`HotkeyMonitor`) — **needs hands-on test** (fullscreen apps, sleep/wake)
-- [x] Paste + clipboard restore written (`TextInserter`) — **needs hands-on test** in Notes, Safari, Slack, VS Code, Terminal
+- [x] Event tap for Fn (`HotkeyMonitor`) — tested end to end; still to check: fullscreen apps, after sleep/wake
+- [x] Paste + clipboard restore (`TextInserter`) — tested in TextEdit and Notes; still to check: Safari, Slack, VS Code, Terminal
 
 ### Phase 1 — Raw dictation end to end
 - [x] Hold Fn → record → `SpeechTranscriber` (streaming) → paste (verified headlessly via `speak-bench`)
-- [x] Pill panel with live waveform (non-activating, all Spaces, over fullscreen) — needs visual check
-- [x] Pill draggable + remembered position + double-click reset — needs visual check
+- [x] Pill panel with live waveform (non-activating, all Spaces, over fullscreen) — checked visually
+- [x] Pill draggable + remembered position + double-click reset — tested
 - [x] Menu bar item (status, recent, paste last, polish toggle, settings, quit)
 - [ ] Use it daily for a bit
 
@@ -91,3 +91,10 @@ Speak.app
   macOS re-enables the tap; 5-min recording cap; finish() timeout; overlapping dictations allowed with pastes
   kept in spoken order; serialized clipboard paste/restore; 200 ms tail capture; paste skipped (copied instead)
   if the frontmost app changed; notices queued until visible. Still needs hands-on: pill double-click reset.
+- 2026-10-07 — First hands-on run (automated with synthetic Fn/mouse events + `say` through the speakers).
+  Passed: hold Fn → paste (0.42 s release → transcript incl. 200 ms tail), double-tap hands-free, Esc cancel
+  (hold and hands-free), Fn+arrow cancel, single tap ignored, smart spacing, clipboard restored, copy-instead
+  when the app changes, paste into Notes, pill drag/remember/double-click reset, menu, Settings.
+  Fixed during testing: Settings opened behind other apps and scrolled; pill reset didn't move the window.
+  Note for test harnesses: macOS 27 drops synthetic key events created without a `CGEventSource`.
+  Apple Intelligence still `modelNotReady`; Settings only shows a "Siri" pane on this macOS 27 build.

@@ -75,18 +75,10 @@ final class PillPanel: NSPanel, NSWindowDelegate {
     }
 
     private func resetPosition() {
+        isPositioning = true
+        setFrame(NSRect(origin: defaultOrigin(), size: Self.size), display: true, animate: true)
+        isPositioning = false
         UserDefaults.standard.removeObject(forKey: Self.originKey)
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.25
-            isPositioning = true
-            animator().setFrameOrigin(defaultOrigin())
-        } completionHandler: { [weak self] in
-            MainActor.assumeIsolated {
-                self?.isPositioning = false
-                // A trailing windowDidMove may have re-saved the default position; it isn't a user choice.
-                UserDefaults.standard.removeObject(forKey: Self.originKey)
-            }
-        }
     }
 
     private func placeAtSavedOrDefaultPosition() {

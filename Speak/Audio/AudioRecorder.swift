@@ -41,6 +41,7 @@ final class AudioRecorder {
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else { throw Failure.noInputDevice }
 
+        log.info("mic format: \(format, privacy: .public)")
         try input.installAudioTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             onLevels(Self.levels(of: buffer))
             sink.append(AVAudioPCMBuffer(copying: buffer))

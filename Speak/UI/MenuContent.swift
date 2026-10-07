@@ -26,8 +26,13 @@ struct MenuContent: View {
             Text(reason)
         }
         Button("Settings…") {
-            NSApp.activate()
             openSettings()
+            // A menu bar app isn't active, so the window would open behind the frontmost app.
+            DispatchQueue.main.async {
+                NSApp.activate()
+                NSApp.windows.first { $0.identifier?.rawValue.contains("Settings") == true }?
+                    .orderFrontRegardless()
+            }
         }
         .keyboardShortcut(",")
         Divider()

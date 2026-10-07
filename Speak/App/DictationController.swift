@@ -100,6 +100,11 @@ final class DictationController {
 
     /// Installs the Fn tap, prompting for Accessibility and polling until it's granted.
     private func startHotkeys() {
+        // Fn arrives as a modifier change with Accessibility alone; Escape and other keys (used to cancel)
+        // are only delivered to the tap with Input Monitoring.
+        let canListen = CGPreflightListenEventAccess()
+        log.info("input monitoring: \(canListen), accessibility: \(AXIsProcessTrusted())")
+        if !canListen { CGRequestListenEventAccess() }
         if hotkeys.start() {
             hasAccessibility = true
             return
@@ -129,6 +134,7 @@ final class DictationController {
     // MARK: Trigger handling
 
     private func handle(_ event: TriggerEvent) {
+        log.debug("event \(String(describing: event), privacy: .public) in state \(String(describing: self.machine.state), privacy: .public)")
         for action in machine.handle(event, at: ProcessInfo.processInfo.systemUptime) {
             perform(action)
         }
@@ -136,6 +142,7 @@ final class DictationController {
     }
 
     private func perform(_ action: TriggerAction) {
+        log.info("action \(String(describing: action), privacy: .public)")
         switch action {
         case .startRecording:
             startRecording()
@@ -157,6 +164,7 @@ final class DictationController {
         // Permission may have been granted in System Settings since launch.
         if !hasMicrophone { hasMicrophone = AVAudioApplication.shared.recordPermission == .granted }
         guard status == .ready else {
+            log.error("not ready: \(self.statusMessage, privacy: .public)")
             machine.reset()
             showNotice(statusMessage)
             return
@@ -242,16 +250,19 @@ final class DictationController {
             switch await withTimeout(finishTimeout, operation: { try await session.finish() }) {
             case .some(.success(let text)):
                 raw = text
-            case .some(.failure):
+            case .some(.failure(let error)):
+                log.error("transcription failed: \(String(describing: error), privacy: .public)")
                 return showNotice("Couldn't transcribe")
             case .none:
                 Task { await session.cancel() }
                 return showNotice("Transcription timed out")
             }
+            log.info("raw transcript (\(raw.count) chars): \(raw, privacy: .private)")
             guard !raw.isEmpty else { return }
 
             let result = await pipeline.run(raw, context: context)
             refreshPolisherAvailability()
+            log.info("polish \(String(describing: result.outcome), privacy: .public) in \(result.duration, privacy: .public): \(result.text, privacy: .private)")
 
             // Paste in the order dictations were spoken.
             await previous?.value
@@ -259,6 +270,7 @@ final class DictationController {
 
             // Don't paste into a different app than the one you were dictating into.
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == recording.appPID else {
+                log.info("frontmost app changed; copying instead of pasting")
                 inserter.copy(result.text)
                 return showNotice("App changed — copied instead")
             }
@@ -303,6 +315,7 @@ final class DictationController {
 
     /// Single source of truth for what the pill shows: recording beats processing beats a notice.
     private func updatePill() {
+        defer { log.debug("pill visible=\(self.pill.isVisible) phase=\(String(describing: self.pill.phase), privacy: .public) frame=\(NSStringFromRect(self.panel.frame), privacy: .public)") }
         if isRecording {
             pill.phase = .listening
         } else if finishingCount > 0 {
