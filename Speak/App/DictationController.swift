@@ -71,6 +71,10 @@ final class DictationController {
         var appName: String?
         var startedAt: ContinuousClock.Instant
         var timeLimit: Task<Void, Never>
+        /// Polishes finished sentences while the user is still talking.
+        var incremental: IncrementalPolish
+        /// Feeds finalized transcript text into `incremental`; ends when the session finishes.
+        var feed: Task<Void, Never>
     }
 
     init() {
@@ -202,6 +206,14 @@ final class DictationController {
         }
 
         let app = NSWorkspace.shared.frontmostApplication
+        let context = PolishContext(
+            appName: app?.localizedName,
+            style: AppStyle.forBundleID(app?.bundleIdentifier),
+            vocabulary: Preferences.dictionaryWords)
+        let polishEnabled = UserDefaults.standard.bool(forKey: Preferences.polishEnabled)
+        // With polishing off this still applies spoken "new line" / "new paragraph" commands.
+        let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polishEnabled ? polisher : nil), context: context)
+        let finalizedText = session.finalized
         current = Recording(
             session: session,
             recorderID: recorderID,
@@ -213,6 +225,10 @@ final class DictationController {
                 try? await Task.sleep(for: Self.maxRecording)
                 guard !Task.isCancelled else { return }
                 handle(.timeLimitReached)
+            },
+            incremental: incremental,
+            feed: Task {
+                for await text in finalizedText { await incremental.update(finalized: text) }
             })
 
         isRecording = true
@@ -220,15 +236,17 @@ final class DictationController {
         pill.handsFree = false
         updatePill()
         playSound("Tink")
-        if UserDefaults.standard.bool(forKey: Preferences.polishEnabled) {
-            polisher.prewarm(context: polishContext(for: current!))
-        }
+        if polishEnabled { polisher.prewarm(context: context) }
     }
 
     private func cancelRecording() {
         guard let recording = endRecording() else { return }
         recorder.stop(recording.recorderID)
-        Task { await recording.session.cancel() }
+        recording.feed.cancel()
+        Task {
+            await recording.session.cancel()
+            await recording.incremental.cancel()
+        }
         updatePill()
     }
 
@@ -236,9 +254,6 @@ final class DictationController {
         guard let recording = endRecording() else { return }
         playSound("Pop")
 
-        let context = polishContext(for: recording)
-        let polishEnabled = UserDefaults.standard.bool(forKey: Preferences.polishEnabled)
-        let pipeline = PolishPipeline(polisher: polishEnabled ? polisher : nil)
         // Generous: finishing normally takes well under a second, but long dictations have more to finalize.
         let finishTimeout = Duration.seconds(5) + (ContinuousClock.now - recording.startedAt) / 10
         let previous = lastFinish
@@ -263,15 +278,22 @@ final class DictationController {
                 log.error("transcription failed: \(String(describing: error), privacy: .public)")
                 return showNotice("Couldn't transcribe")
             case .none:
+                recording.feed.cancel()
                 Task { await session.cancel() }
                 return showNotice("Transcription timed out")
             }
+            // The finalized stream has ended; make sure its last update reached the polisher before finishing.
+            await recording.feed.value
             log.info("raw transcript (\(raw.count) chars): \(raw, privacy: .private)")
-            guard !raw.isEmpty else { return }
+            guard !raw.isEmpty else {
+                await recording.incremental.cancel()
+                return
+            }
 
-            let result = await pipeline.run(raw, context: context)
+            let polishStart = ContinuousClock.now
+            let result = await recording.incremental.finish(transcript: raw)
             refreshPolisherAvailability()
-            log.info("polish \(String(describing: result.outcome), privacy: .public) in \(result.duration, privacy: .public): \(result.text, privacy: .private)")
+            log.info("polish \(String(describing: result.outcomes), privacy: .public); waited \(ContinuousClock.now - polishStart, privacy: .public) after release: \(result.text, privacy: .private)")
 
             // Paste in the order dictations were spoken.
             await previous?.value
@@ -283,7 +305,10 @@ final class DictationController {
                 inserter.copy(result.text)
                 return showNotice("App changed — copied instead")
             }
-            let text = FocusedText.withLeadingSpaceIfNeeded(result.text, after: FocusedText.characterBeforeCaret())
+            let around = FocusedText.surroundings()
+            let text = InsertionFormatter.format(
+                result.text, before: around.before, after: around.after,
+                keepCapitalized: Preferences.dictionaryWords)
             await inserter.insert(text)
         }
     }
@@ -298,17 +323,10 @@ final class DictationController {
         return recording
     }
 
-    private func polishContext(for recording: Recording) -> PolishContext {
-        PolishContext(
-            appName: recording.appName,
-            style: AppStyle.forBundleID(recording.appBundleID),
-            vocabulary: Preferences.dictionaryWords)
-    }
-
     // MARK: History
 
-    func copy(_ item: HistoryItem) {
-        inserter.copy(item.text)
+    func copy(_ text: String) {
+        inserter.copy(text)
     }
 
     func pasteLast() {
@@ -357,7 +375,7 @@ final class DictationController {
     var statusMessage: String {
         switch status {
         case .starting: "Loading speech model…"
-        case .ready: "Hold fn to dictate"
+        case .ready: "Hold \(TriggerKey.current.name) to dictate"
         case .needsAccessibility: "Needs Accessibility access"
         case .needsMicrophone: "Needs microphone access"
         case .failed(let message): message

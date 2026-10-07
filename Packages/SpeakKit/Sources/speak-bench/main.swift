@@ -10,6 +10,7 @@ import SpeakEngines
 //   speak-bench polish [--style chat|email|code] <text> polish one string
 //   speak-bench cases <cases.json> [--style …]          polish every {"raw": …, "expected": …} case
 //   speak-bench run [--realtime] <audio>...             transcribe, then polish
+//   speak-bench long <text>                             simulate a long dictation polished while speaking
 
 @main
 struct SpeakBench {
@@ -45,6 +46,8 @@ struct SpeakBench {
                 let pipeline = PolishPipeline(polisher: FoundationModelsPolisher(), timeout: .seconds(10))
                 let result = await pipeline.run(args.joined(separator: " "), context: context)
                 print("\(result.outcome) in \(result.duration):\n\(result.text)")
+            case "long":
+                try await runLong(args.joined(separator: " "), context: context)
             case "cases":
                 guard let path = args.first else { return usage() }
                 try await runCases(path, context: context)
@@ -105,6 +108,32 @@ struct SpeakBench {
             if match == false, let expected = item.expected { print("  exp: \(expected)") }
         }
         print("\n\(exact)/\(cases.count) exact matches, average \(total / cases.count)")
+    }
+
+    /// Feeds `text` to IncrementalPolish one sentence at a time at ~150 wpm, then reports the wait after "release".
+    static func runLong(_ text: String, context: PolishContext) async throws {
+        let polisher = FoundationModelsPolisher()
+        let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polisher), context: context)
+        polisher.prewarm(context: context)
+
+        var sentences: [String] = []
+        text.enumerateSubstrings(in: text.startIndex..., options: .bySentences) { sentence, _, _, _ in
+            if let sentence { sentences.append(sentence) }
+        }
+        var finalized = ""
+        let speakingStart = ContinuousClock.now
+        for sentence in sentences {
+            // ~150 words per minute is ~15 characters per second.
+            try await Task.sleep(for: .milliseconds(sentence.count * 1000 / 15))
+            finalized += sentence
+            await incremental.update(finalized: finalized)
+        }
+        print("spoke \(sentences.count) sentences in \(ContinuousClock.now - speakingStart)")
+        let release = ContinuousClock.now
+        let result = await incremental.finish(transcript: finalized.trimmingCharacters(in: .whitespaces))
+        print("wait after release: \(ContinuousClock.now - release)")
+        print("outcomes: \(result.outcomes)")
+        print("\n\(result.text)")
     }
 
     static func take(_ flag: String, from args: inout [String]) -> Bool {

@@ -1,45 +1,62 @@
 import ApplicationServices
 import Foundation
 
-/// Reads around the caret of the focused text field via Accessibility. Many apps (Electron, some
-/// browsers, terminals) don't expose this; every function returns nil in that case.
+/// Reads the text around the caret of the focused field via Accessibility. Many apps (Electron, some
+/// browsers, terminals) don't expose this; the values are nil in that case.
 enum FocusedText {
-    /// The character immediately before the caret/selection, or nil if unknown or at the start.
-    static func characterBeforeCaret() -> Character? {
+    struct Surroundings {
+        /// Up to three characters before the caret; empty at the start of the field.
+        var before: String?
+        /// The character after the caret/selection; nil at the end of the field or if unknown.
+        var after: Character?
+    }
+
+    static func surroundings() -> Surroundings {
+        guard let element = focusedElement(), let selection = selectedRange(of: element) else {
+            return Surroundings()
+        }
+        let beforeLength = min(selection.location, 3)
+        let before = beforeLength == 0
+            ? ""
+            : string(in: element, range: CFRange(location: selection.location - beforeLength, length: beforeLength))
+        let afterText = string(in: element, range: CFRange(location: selection.location + selection.length, length: 2))
+        return Surroundings(before: before.map(dropBrokenSurrogate), after: afterText?.first)
+    }
+
+    private static func focusedElement() -> AXUIElement? {
         let systemWide = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemWide, 0.1)
-
         var focused: CFTypeRef?
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
               let focused, CFGetTypeID(focused) == AXUIElementGetTypeID()
         else { return nil }
         let element = focused as! AXUIElement
-
-        var rangeValue: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeValue) == .success,
-              let rangeValue, CFGetTypeID(rangeValue) == AXValueGetTypeID()
-        else { return nil }
-        var range = CFRange()
-        guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &range), range.location > 0 else { return nil }
-
-        // Ranges are UTF-16 units: read two so a preceding emoji (surrogate pair) comes back whole.
-        let length = min(range.location, 2)
-        var previous = CFRange(location: range.location - length, length: length)
-        guard let previousValue = AXValueCreate(.cfRange, &previous) else { return nil }
-        var string: CFTypeRef?
-        guard AXUIElementCopyParameterizedAttributeValue(
-            element, kAXStringForRangeParameterizedAttribute as CFString, previousValue, &string) == .success,
-              let text = string as? String, let last = text.last,
-              last != "\u{FFFD}"
-        else { return nil }
-        return last
+        AXUIElementSetMessagingTimeout(element, 0.1)
+        return element
     }
 
-    /// Prefixes a space when the new text would otherwise butt up against the previous word.
-    static func withLeadingSpaceIfNeeded(_ text: String, after previous: Character?) -> String {
-        guard let previous, let first = text.first else { return text }
-        if previous.isWhitespace || "([{\"'“‘/-".contains(previous) { return text }
-        if first.isWhitespace || ".,;:!?)]}".contains(first) { return text }
-        return " " + text
+    private static func selectedRange(of element: AXUIElement) -> CFRange? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXValueGetTypeID()
+        else { return nil }
+        var range = CFRange()
+        guard AXValueGetValue(value as! AXValue, .cfRange, &range) else { return nil }
+        return range
+    }
+
+    /// Ranges are UTF-16 units, so a range edge can split an emoji; `dropBrokenSurrogate` cleans that up.
+    private static func string(in element: AXUIElement, range: CFRange) -> String? {
+        var range = range
+        guard let rangeValue = AXValueCreate(.cfRange, &range) else { return nil }
+        var value: CFTypeRef?
+        guard AXUIElementCopyParameterizedAttributeValue(
+            element, kAXStringForRangeParameterizedAttribute as CFString, rangeValue, &value) == .success
+        else { return nil }
+        return value as? String
+    }
+
+    private static func dropBrokenSurrogate(_ text: String) -> String {
+        String(text.drop(while: { $0 == "\u{FFFD}" }))
     }
 }

@@ -2,7 +2,7 @@ import AppKit
 import CoreGraphics
 import SpeakCore
 
-/// Watches the Fn key system-wide with a CGEventTap. Requires Accessibility permission.
+/// Watches the trigger key (Fn by default) system-wide with a CGEventTap. Requires Accessibility permission.
 ///
 /// The tap runs on its own thread so that main-thread work (starting the mic, Accessibility queries)
 /// never delays keystrokes system-wide. Events are delivered to the main queue.
@@ -15,7 +15,7 @@ final class HotkeyMonitor: @unchecked Sendable {
 
     private struct State {
         var tap: CFMachPort?
-        var fnIsDown = false
+        var triggerIsDown = false
         var swallowsEscape = false
     }
 
@@ -66,20 +66,21 @@ final class HotkeyMonitor: @unchecked Sendable {
             let missedFnUp = state.withLock { state -> Bool in
                 if let tap = state.tap { CGEvent.tapEnable(tap: tap, enable: true) }
                 // Key-ups may have been missed while it was off.
-                let fnHeld = CGEventSource.flagsState(.combinedSessionState).contains(.maskSecondaryFn)
-                guard state.fnIsDown, !fnHeld else { return false }
-                state.fnIsDown = false
+                let held = TriggerKey.current.isDown(CGEventSource.flagsState(.combinedSessionState))
+                guard state.triggerIsDown, !held else { return false }
+                state.triggerIsDown = false
                 return true
             }
             if missedFnUp { deliver(.fnUp) }
             return true
 
         case .flagsChanged:
-            guard event.keyCode == Self.fnKeyCode else { return true }
-            let down = event.flags.contains(.maskSecondaryFn)
+            let trigger = TriggerKey.current
+            guard event.keyCode == trigger.keyCode else { return true }
+            let down = trigger.isDown(event.flags)
             let changed = state.withLock { state -> Bool in
-                guard down != state.fnIsDown else { return false }
-                state.fnIsDown = down
+                guard down != state.triggerIsDown else { return false }
+                state.triggerIsDown = down
                 return true
             }
             if changed { deliver(down ? .fnDown : .fnUp) }
@@ -109,7 +110,6 @@ final class HotkeyMonitor: @unchecked Sendable {
         }
     }
 
-    private static let fnKeyCode: Int64 = 63 // kVK_Function
     private static let escapeKeyCode: Int64 = 53 // kVK_Escape
     private static let globeKeyCode: Int64 = 179 // emitted by the system after a Fn/Globe tap
 }

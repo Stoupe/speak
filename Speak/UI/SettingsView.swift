@@ -5,6 +5,7 @@ struct SettingsView: View {
     let controller: DictationController
 
     @AppStorage(Preferences.microphoneUID) private var microphoneUID = ""
+    @AppStorage(Preferences.triggerKey) private var triggerKey = TriggerKey.fn
     @AppStorage(Preferences.polishEnabled) private var polishEnabled = true
     @AppStorage(Preferences.soundsEnabled) private var soundsEnabled = true
     @AppStorage(Preferences.dictionary) private var dictionary = ""
@@ -14,6 +15,9 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
+                Picker("Trigger key", selection: $triggerKey) {
+                    ForEach(TriggerKey.allCases) { Text($0.menuTitle).tag($0) }
+                }
                 Picker("Microphone", selection: $microphoneUID) {
                     Text("System Default").tag("")
                     ForEach(microphones) { Text($0.name).tag($0.uid) }
@@ -23,7 +27,7 @@ struct SettingsView: View {
                 Toggle("Launch at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in setLaunchAtLogin(enabled) }
             } footer: {
-                Text("Hold fn to dictate, or double-tap fn for hands-free. Esc cancels.")
+                Text("Hold \(triggerKey.name) to dictate, or double-tap it for hands-free. Esc cancels.")
                     .foregroundStyle(.secondary)
             }
 

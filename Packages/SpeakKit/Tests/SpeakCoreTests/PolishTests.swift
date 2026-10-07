@@ -36,6 +36,16 @@ import Testing
         #expect(PolishGuard.rejection(raw: raw, polished: "Sure, that works for me. See you then.") == nil)
     }
 
+    @Test func rejectsSummarizedOutput() {
+        let raw = "the app takes like four seconds to launch on an iPhone 12 which is too slow and I think it's because we load all the images up front so my plan is to lazy load them"
+        let summarized = "The app takes four seconds to launch on an iPhone 12. So I plan to lazy load them."
+        #expect(PolishGuard.rejection(raw: raw, polished: summarized) == .droppedContent)
+        let faithful = "The app takes like four seconds to launch on an iPhone 12, which is too slow, and I think it's because we load all the images up front. So my plan is to lazy load them."
+        #expect(PolishGuard.rejection(raw: raw, polished: faithful) == nil)
+        // A self-correction legitimately drops a word or two.
+        #expect(PolishGuard.rejection(raw: "Send it to John, sorry, I meant Jane, by end of day.", polished: "Send it to Jane by end of day.") == nil)
+    }
+
     @Test func rejectsRunawayOutput() {
         let raw = "write a short note to sam about lunch"
         let out = String(repeating: "Dear Sam, I wanted to reach out about lunch. ", count: 5)

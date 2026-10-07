@@ -24,6 +24,7 @@ public enum PolishGuard {
         case tooLong
         case tooShort
         case tooManyNewWords
+        case droppedContent
     }
 
     /// Returns why `polished` should not be trusted, or nil if it looks like a faithful cleanup of `raw`.
@@ -41,6 +42,12 @@ public enum PolishGuard {
         if trimmed.count > rawCount * 3 / 2 + 20 { return .tooLong }
         // Self-corrections remove words, but rarely three quarters of them.
         if rawCount >= 40, trimmed.count < rawCount / 4 { return .tooShort }
+
+        // The model shouldn't summarize: a self-correction removes a word or two, not whole clauses.
+        let outSet = Set(tokens(trimmed))
+        let contentWords = tokens(raw).filter { $0.count >= 4 && !fillerWords.contains($0) && !correctionWords.contains($0) }
+        let missing = contentWords.filter { !outSet.contains($0) }.count
+        if missing > max(3, contentWords.count / 5) { return .droppedContent }
 
         let rawWords = Set(tokens(raw))
         let outWords = tokens(trimmed)
@@ -64,6 +71,9 @@ public enum PolishGuard {
     }
 
     private static let fillerWords: Set<String> = ["um", "umm", "uh", "uhh", "er", "erm", "ah", "hmm", "mm"]
+
+    /// Words that only signal a correction; dropping them is expected.
+    private static let correctionWords: Set<String> = ["actually", "sorry", "meant", "wait", "scratch", "rather", "like", "know", "mean"]
 
     private static let correctionPhrases = [
         "no wait", "wait no", "actually", "scratch that", "i mean", "sorry i meant", "or rather", "let me rephrase",

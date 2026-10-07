@@ -21,8 +21,8 @@ public enum PolishPrompt {
             keep only the corrected version.
             """,
             "- Fix punctuation and capitalization. Split run-on sentences.",
-            "- Keep everything else exactly as said: same words, greetings, sign-offs, tone and sentence type.",
-            "- Do not summarize, rephrase, add words, or turn statements into questions.",
+            "- Keep everything else exactly as said: every clause and detail, the same words and spelling, greetings, sign-offs, tone and sentence type.",
+            "- Do not summarize, shorten, rephrase, add words, or turn statements into questions.",
             "- Reply with the cleaned text only. No quotes, labels or explanations.",
         ]
 
@@ -79,5 +79,7 @@ public enum PolishPrompt {
          "What time does the store close tonight?"),
         ("I think we should probably you know wait until the data comes in",
          "I think we should probably wait until the data comes in."),
+        ("the build is like really slow on my laptop which is annoying and I think it's because uh we compile the assets every time so my plan is to cache them",
+         "The build is like really slow on my laptop, which is annoying, and I think it's because we compile the assets every time. So my plan is to cache them."),
     ]
 }

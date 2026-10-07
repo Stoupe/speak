@@ -11,9 +11,12 @@ struct MenuContent: View {
 
         if !controller.history.items.isEmpty {
             Divider()
-            Section("Recent — click to copy") {
+            Section("Recent — click to copy, ⌥ for original") {
                 ForEach(controller.history.items.prefix(5)) { item in
-                    Button(preview(item.text)) { controller.copy(item) }
+                    Button(preview(item.text)) { controller.copy(item.text) }
+                        .modifierKeyAlternate(.option) {
+                            Button(preview(item.raw)) { controller.copy(item.raw) }
+                        }
                 }
             }
             Button("Paste Last Dictation") { controller.pasteLast() }

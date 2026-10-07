@@ -14,6 +14,8 @@ public protocol TranscriptionSession: AnyObject, Sendable {
     func append(_ buffer: AVAudioPCMBuffer)
     /// Running transcript (finalized + volatile text) as it changes.
     var partials: AsyncStream<String> { get }
+    /// Finalized text so far, each time it grows. Finalized text never changes, it only gets longer.
+    var finalized: AsyncStream<String> { get }
     /// Ends input and returns the final transcript.
     func finish() async throws -> String
     /// Ends input and discards everything.

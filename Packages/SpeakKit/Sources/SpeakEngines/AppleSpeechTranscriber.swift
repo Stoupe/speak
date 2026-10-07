@@ -79,12 +79,14 @@ final class AppleTranscriptionSession: TranscriptionSession, @unchecked Sendable
     // `@unchecked`: all mutable state lives behind `Locked`; the converter is only used inside its lock.
 
     let partials: AsyncStream<String>
+    let finalized: AsyncStream<String>
 
     private let analyzer: SpeechAnalyzer
     /// The converter isn't thread-safe and is used from the audio thread and from finish/cancel.
     private let inputState: Locked<InputState>
     private let input: AsyncStream<AnalyzerInput>.Continuation
     private let partialsContinuation: AsyncStream<String>.Continuation
+    private let finalizedContinuation: AsyncStream<String>.Continuation
     private let startTask: Task<Void, any Error>
     private let resultsTask: Task<Void, any Error>
     private let text = Locked(Transcript())
@@ -110,6 +112,7 @@ final class AppleTranscriptionSession: TranscriptionSession, @unchecked Sendable
         let (inputStream, input) = AsyncStream<AnalyzerInput>.makeStream()
         self.input = input
         (partials, partialsContinuation) = AsyncStream<String>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        (finalized, finalizedContinuation) = AsyncStream<String>.makeStream(bufferingPolicy: .bufferingNewest(1))
 
         startTask = Task {
             if !vocabulary.isEmpty {
@@ -122,19 +125,22 @@ final class AppleTranscriptionSession: TranscriptionSession, @unchecked Sendable
 
         let text = text
         let partialsContinuation = partialsContinuation
+        let finalizedContinuation = finalizedContinuation
         resultsTask = Task {
             for try await result in module.results {
                 let chunk = String(result.text.characters)
-                let combined = text.withLock { transcript in
+                let (combined, finalized) = text.withLock { transcript in
                     if result.isFinal {
                         transcript.finalized += chunk
                         transcript.volatile = ""
                     } else {
                         transcript.volatile = chunk
                     }
-                    return transcript.combined
+                    return (transcript.combined, transcript.finalized)
                 }
                 partialsContinuation.yield(combined)
+                // Same leading trim as `combined`, so `finish()`'s transcript starts with this text.
+                if result.isFinal { finalizedContinuation.yield(String(finalized.drop(while: \.isWhitespace))) }
             }
         }
     }
@@ -149,7 +155,10 @@ final class AppleTranscriptionSession: TranscriptionSession, @unchecked Sendable
 
     func finish() async throws -> String {
         closeInput(flush: true)
-        defer { partialsContinuation.finish() }
+        defer {
+            partialsContinuation.finish()
+            finalizedContinuation.finish()
+        }
         try await startTask.value
         try await analyzer.finalizeAndFinishThroughEndOfInput()
         try await resultsTask.value
@@ -159,6 +168,7 @@ final class AppleTranscriptionSession: TranscriptionSession, @unchecked Sendable
     func cancel() async {
         closeInput(flush: false)
         partialsContinuation.finish()
+        finalizedContinuation.finish()
         startTask.cancel()
         await analyzer.cancelAndFinishNow()
         resultsTask.cancel()

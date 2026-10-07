@@ -15,7 +15,7 @@ struct SpeakApp: App {
         MenuBarExtra {
             MenuContent(controller: controller)
         } label: {
-            Image(systemName: controller.isRecording ? "waveform.circle.fill" : "waveform")
+            Image(controller.isRecording ? "MenuBarIconRecording" : "MenuBarIcon")
         }
 
         Settings {

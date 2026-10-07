@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import SpeakCore
 
 /// Inserts text into the focused field by pasting, then puts the user's clipboard back.
 @MainActor
@@ -27,17 +28,23 @@ final class TextInserter {
         let pasteboard = NSPasteboard.general
         let saved = snapshot(pasteboard)
 
+        // The text is provided on demand, so we learn exactly when the target app reads it. Restoring the
+        // clipboard on a fixed timer raced slow apps, which then pasted the *old* clipboard contents.
+        let provider = PasteProvider(text: text)
         pasteboard.clearContents()
         let item = NSPasteboardItem()
-        item.setString(text, forType: .string)
+        item.setDataProvider(provider, forTypes: [.string])
         for type in Self.transientTypes { item.setData(Data(), forType: type) }
         pasteboard.writeObjects([item])
         let ourChangeCount = pasteboard.changeCount
 
+        let start = ContinuousClock.now
         postCommandV()
 
-        // Give the target app time to read the clipboard before restoring it.
-        try? await Task.sleep(for: .milliseconds(500))
+        let wasRead = await provider.waitForRead(timeout: .seconds(3))
+        log.info("paste read=\(wasRead) after \(ContinuousClock.now - start, privacy: .public)")
+        // A little grace in case the app reads more than once (e.g. several representations).
+        try? await Task.sleep(for: .milliseconds(200))
         // If something else wrote to the clipboard meanwhile, leave it alone.
         guard pasteboard.changeCount == ourChangeCount else { return }
         restore(saved, to: pasteboard)
@@ -80,5 +87,39 @@ final class TextInserter {
             return item
         }
         pasteboard.writeObjects(items)
+    }
+}
+
+/// Supplies the pasted text lazily and reports when someone has asked for it.
+private final class PasteProvider: NSObject, NSPasteboardItemDataProvider, @unchecked Sendable {
+    // `@unchecked`: AppKit calls the provider on the main thread; `reads` is only touched there.
+
+    private let text: String
+    private let reads: AsyncStream<Void>
+    private let readContinuation: AsyncStream<Void>.Continuation
+
+    init(text: String) {
+        self.text = text
+        (reads, readContinuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+    }
+
+    func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem, provideDataForType type: NSPasteboard.PasteboardType) {
+        item.setString(text, forType: type)
+        readContinuation.yield()
+    }
+
+    func pasteboardFinishedWithDataProvider(_ pasteboard: NSPasteboard) {
+        readContinuation.finish()
+    }
+
+    /// True once the text has been read; false if nobody read it within `timeout`.
+    func waitForRead(timeout: Duration) async -> Bool {
+        let reads = reads
+        let result = await withTimeout(timeout) {
+            for await _ in reads { return true }
+            return false
+        }
+        if case .success(true) = result { return true }
+        return false
     }
 }

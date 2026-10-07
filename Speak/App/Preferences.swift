@@ -3,6 +3,8 @@ import Foundation
 /// UserDefaults keys, shared by `@AppStorage` in views and direct reads in the controller.
 enum Preferences {
     static let microphoneUID = "microphoneUID"
+    static let triggerKey = "triggerKey"
+    static let setupCompleted = "setupCompleted"
     static let polishEnabled = "polishEnabled"
     static let soundsEnabled = "soundsEnabled"
     /// Newline-separated names and terms.
