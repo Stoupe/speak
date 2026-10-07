@@ -1,0 +1,81 @@
+import ServiceManagement
+import SwiftUI
+
+struct SettingsView: View {
+    let controller: DictationController
+
+    @AppStorage(Preferences.microphoneUID) private var microphoneUID = ""
+    @AppStorage(Preferences.polishEnabled) private var polishEnabled = true
+    @AppStorage(Preferences.soundsEnabled) private var soundsEnabled = true
+    @AppStorage(Preferences.dictionary) private var dictionary = ""
+    @State private var microphones: [AudioDevices.Device] = []
+    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Microphone", selection: $microphoneUID) {
+                    Text("System Default").tag("")
+                    ForEach(microphones) { Text($0.name).tag($0.uid) }
+                }
+                Toggle("Polish text", isOn: $polishEnabled)
+                Toggle("Sounds", isOn: $soundsEnabled)
+                Toggle("Launch at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, enabled in setLaunchAtLogin(enabled) }
+            } footer: {
+                Text("Hold fn to dictate, or double-tap fn for hands-free. Esc cancels.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                TextEditor(text: $dictionary)
+                    .font(.body)
+                    .frame(minHeight: 90)
+                    .scrollContentBackground(.hidden)
+            } header: {
+                Text("Dictionary")
+            } footer: {
+                Text("Names and terms to spell exactly, one per line.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                LabeledContent("Speech model", value: modelDescription)
+                LabeledContent("Polishing", value: polishDescription)
+                if !controller.history.items.isEmpty {
+                    Button("Clear History", role: .destructive) { controller.clearHistory() }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 420)
+        .fixedSize(horizontal: false, vertical: true)
+        .onAppear {
+            microphones = AudioDevices.inputDevices()
+            controller.refreshPolisherAvailability()
+        }
+    }
+
+    private var modelDescription: String {
+        switch controller.modelState {
+        case .loading: "Loading…"
+        case .ready: "On-device, ready"
+        case .failed(let message): message
+        }
+    }
+
+    private var polishDescription: String {
+        switch controller.polisherAvailability {
+        case .available: "Apple Intelligence, on-device"
+        case .unavailable(let reason): reason
+        }
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+        } catch {
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+        }
+    }
+}

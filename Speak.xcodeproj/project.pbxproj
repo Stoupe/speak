@@ -1,0 +1,289 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5E0000000000000000000101 /* SpeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5E0000000000000000000201 /* SpeakCore */; };
+		5E0000000000000000000102 /* SpeakEngines in Frameworks */ = {isa = PBXBuildFile; productRef = 5E0000000000000000000202 /* SpeakEngines */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		5E0000000000000000000301 /* Speak.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Speak.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E0000000000000000000302 /* SpeakKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SpeakKit; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		5E0000000000000000000401 /* Speak */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Speak; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5E0000000000000000000501 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E0000000000000000000101 /* SpeakCore in Frameworks */,
+				5E0000000000000000000102 /* SpeakEngines in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5E0000000000000000000601 = {
+			isa = PBXGroup;
+			children = (
+				5E0000000000000000000401 /* Speak */,
+				5E0000000000000000000603 /* Packages */,
+				5E0000000000000000000602 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5E0000000000000000000602 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5E0000000000000000000301 /* Speak.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5E0000000000000000000603 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				5E0000000000000000000302 /* SpeakKit */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5E0000000000000000000701 /* Speak */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E0000000000000000000A02 /* Build configuration list for PBXNativeTarget "Speak" */;
+			buildPhases = (
+				5E0000000000000000000901 /* Sources */,
+				5E0000000000000000000501 /* Frameworks */,
+				5E0000000000000000000902 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5E0000000000000000000401 /* Speak */,
+			);
+			name = Speak;
+			packageProductDependencies = (
+				5E0000000000000000000201 /* SpeakCore */,
+				5E0000000000000000000202 /* SpeakEngines */,
+			);
+			productName = Speak;
+			productReference = 5E0000000000000000000301 /* Speak.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5E0000000000000000000801 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					5E0000000000000000000701 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = 5E0000000000000000000A01 /* Build configuration list for PBXProject "Speak" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5E0000000000000000000601;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5E0000000000000000000B01 /* XCLocalSwiftPackageReference "Packages/SpeakKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5E0000000000000000000602 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5E0000000000000000000701 /* Speak */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5E0000000000000000000902 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5E0000000000000000000901 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5E0000000000000000000C01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		5E0000000000000000000C02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		5E0000000000000000000C03 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = V4TSTMTS4F;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Speak;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Speak listens to your microphone only while you hold the fn key.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Speak transcribes your dictation on this Mac.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.stoupe.Speak;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		5E0000000000000000000C04 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = V4TSTMTS4F;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Speak;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Speak listens to your microphone only while you hold the fn key.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Speak transcribes your dictation on this Mac.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.stoupe.Speak;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5E0000000000000000000A01 /* Build configuration list for PBXProject "Speak" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E0000000000000000000C01 /* Debug */,
+				5E0000000000000000000C02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5E0000000000000000000A02 /* Build configuration list for PBXNativeTarget "Speak" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E0000000000000000000C03 /* Debug */,
+				5E0000000000000000000C04 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5E0000000000000000000B01 /* XCLocalSwiftPackageReference "Packages/SpeakKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SpeakKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5E0000000000000000000201 /* SpeakCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E0000000000000000000B01 /* XCLocalSwiftPackageReference "Packages/SpeakKit" */;
+			productName = SpeakCore;
+		};
+		5E0000000000000000000202 /* SpeakEngines */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E0000000000000000000B01 /* XCLocalSwiftPackageReference "Packages/SpeakKit" */;
+			productName = SpeakEngines;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 5E0000000000000000000801 /* Project object */;
+}

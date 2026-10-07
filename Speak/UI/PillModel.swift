@@ -1,0 +1,35 @@
+import Observation
+import SwiftUI
+
+@MainActor
+@Observable
+final class PillModel {
+    enum Phase: Equatable {
+        case listening
+        case processing
+        /// A short message (e.g. "Microphone access needed") shown briefly.
+        case notice(String)
+    }
+
+    static let barCount = 24
+
+    /// Whether the panel should be on screen. Kept separate from `phase` so the content doesn't change while fading out.
+    var isVisible = false
+    var phase: Phase = .listening
+    var handsFree = false
+    /// Most recent loudness values, oldest first.
+    private(set) var levels = [Float](repeating: 0, count: PillModel.barCount)
+
+    @ObservationIgnored var onCancel: () -> Void = {}
+    @ObservationIgnored var onResetPosition: () -> Void = {}
+
+    func push(_ newLevels: [Float]) {
+        guard !newLevels.isEmpty else { return }
+        levels.append(contentsOf: newLevels)
+        levels.removeFirst(max(0, levels.count - Self.barCount))
+    }
+
+    func resetLevels() {
+        levels = [Float](repeating: 0, count: Self.barCount)
+    }
+}
