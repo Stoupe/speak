@@ -75,10 +75,11 @@ final class DictationController {
 
     init() {
         pill.onCancel = { [weak self] in self?.handle(.escape) }
-        hotkeys.onEvent = { [weak self] event in self?.handle(event) }
+        hotkeys.onEvent = { [weak self] event, time in self?.handle(event, at: time) }
     }
 
     func launch() {
+        recorder.warmUp()
         Task {
             await requestMicrophone()
             startHotkeys()
@@ -133,9 +134,11 @@ final class DictationController {
 
     // MARK: Trigger handling
 
-    private func handle(_ event: TriggerEvent) {
-        log.debug("event \(String(describing: event), privacy: .public) in state \(String(describing: self.machine.state), privacy: .public)")
-        for action in machine.handle(event, at: ProcessInfo.processInfo.systemUptime) {
+    private func handle(_ event: TriggerEvent, at time: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        if event != .otherKey || machine.isActive {
+            log.debug("event \(String(describing: event), privacy: .public) in state \(String(describing: self.machine.state), privacy: .public)")
+        }
+        for action in machine.handle(event, at: time) {
             perform(action)
         }
         hotkeys.swallowsEscape = machine.isActive
@@ -179,6 +182,8 @@ final class DictationController {
             showNotice("Speech model isn't ready")
             return
         }
+        let micStart = ContinuousClock.now
+        defer { log.info("mic start took \(ContinuousClock.now - micStart, privacy: .public)") }
         do {
             let pill = pill
             recorderID = try recorder.start(

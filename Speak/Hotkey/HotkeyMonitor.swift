@@ -9,8 +9,9 @@ import SpeakCore
 final class HotkeyMonitor: @unchecked Sendable {
     // `@unchecked`: `onEvent` is set once before `start()`; everything mutable afterwards is in `state`.
 
-    /// Receives Fn / other-key / escape events on the main queue.
-    var onEvent: (@MainActor (TriggerEvent) -> Void)?
+    /// Receives Fn / other-key / escape events on the main queue, with the system uptime at which the key
+    /// actually changed (the main thread may be busy, so handling time isn't a reliable timestamp).
+    var onEvent: (@MainActor (TriggerEvent, TimeInterval) -> Void)?
 
     private struct State {
         var tap: CFMachPort?
@@ -87,6 +88,8 @@ final class HotkeyMonitor: @unchecked Sendable {
         case .keyDown:
             // Ignore our own synthetic ⌘V and other injected events.
             guard event.sourcePID != Int64(getpid()) else { return true }
+            // Releasing Fn after a quick tap makes macOS emit a synthetic Globe key press; it isn't "another key".
+            guard event.keyCode != Self.globeKeyCode else { return true }
             if event.keyCode == Self.escapeKeyCode {
                 deliver(.escape)
                 return !swallowsEscape
@@ -100,13 +103,15 @@ final class HotkeyMonitor: @unchecked Sendable {
     }
 
     private func deliver(_ event: TriggerEvent) {
+        let time = ProcessInfo.processInfo.systemUptime
         DispatchQueue.main.async { [weak self] in
-            MainActor.assumeIsolated { self?.onEvent?(event) }
+            MainActor.assumeIsolated { self?.onEvent?(event, time) }
         }
     }
 
     private static let fnKeyCode: Int64 = 63 // kVK_Function
     private static let escapeKeyCode: Int64 = 53 // kVK_Escape
+    private static let globeKeyCode: Int64 = 179 // emitted by the system after a Fn/Globe tap
 }
 
 private func hotkeyTapCallback(

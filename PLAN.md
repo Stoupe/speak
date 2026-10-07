@@ -98,3 +98,7 @@ Speak.app
   Fixed during testing: Settings opened behind other apps and scrolled; pill reset didn't move the window.
   Note for test harnesses: macOS 27 drops synthetic key events created without a `CGEventSource`.
   Apple Intelligence still `modelNotReady`; Settings only shows a "Siri" pane on this macOS 27 build.
+- 2026-10-07 — Real-keyboard double-tap bug: after a quick Fn tap, macOS emits a synthetic Globe keyDown
+  (keycode 179) that was treated as "another key" → cancel. Now ignored. Also: events are now timestamped on
+  the tap thread (main-thread stalls had made a quick tap look like a hold), and Core Audio is warmed at
+  launch (first mic start 0.7 s → 0.2 s).

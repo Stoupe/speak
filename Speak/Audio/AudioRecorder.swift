@@ -58,6 +58,13 @@ final class AudioRecorder {
         return recordingID
     }
 
+    /// Touches the audio input once at launch so the first real recording doesn't pay Core Audio's cold start.
+    /// Doesn't start the engine, so the mic indicator stays off.
+    func warmUp() {
+        let engine = AVAudioEngine()
+        withExtendedLifetime(engine) { _ = engine.inputNode.outputFormat(forBus: 0) }
+    }
+
     /// Stops the recording with this ID, if it's still the current one.
     func stop(_ id: Int) {
         guard id == recordingID else { return }
