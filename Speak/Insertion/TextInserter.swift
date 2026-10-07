@@ -39,12 +39,14 @@ final class TextInserter {
         let ourChangeCount = pasteboard.changeCount
 
         let start = ContinuousClock.now
+        // Only reads after ⌘V count: a clipboard manager may read the moment we write.
+        provider.armed = true
         postCommandV()
 
         let wasRead = await provider.waitForRead(timeout: .seconds(3))
         log.info("paste read=\(wasRead) after \(ContinuousClock.now - start, privacy: .public)")
-        // A little grace in case the app reads more than once (e.g. several representations).
-        try? await Task.sleep(for: .milliseconds(200))
+        // Grace in case the app reads more than once, and a floor in case the first read wasn't the app's.
+        try? await Task.sleep(for: max(.milliseconds(200), .milliseconds(500) - (ContinuousClock.now - start)))
         // If something else wrote to the clipboard meanwhile, leave it alone.
         guard pasteboard.changeCount == ourChangeCount else { return }
         restore(saved, to: pasteboard)
@@ -95,6 +97,8 @@ private final class PasteProvider: NSObject, NSPasteboardItemDataProvider, @unch
     // `@unchecked`: AppKit calls the provider on the main thread; `reads` is only touched there.
 
     private let text: String
+    /// Set just before ⌘V is posted; reads before that are served but not counted.
+    var armed = false
     private let reads: AsyncStream<Void>
     private let readContinuation: AsyncStream<Void>.Continuation
 
@@ -105,7 +109,7 @@ private final class PasteProvider: NSObject, NSPasteboardItemDataProvider, @unch
 
     func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem, provideDataForType type: NSPasteboard.PasteboardType) {
         item.setString(text, forType: type)
-        readContinuation.yield()
+        if armed { readContinuation.yield() }
     }
 
     func pasteboardFinishedWithDataProvider(_ pasteboard: NSPasteboard) {

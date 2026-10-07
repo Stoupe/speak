@@ -14,13 +14,14 @@ public enum InsertionFormatter {
         var text = text
         guard let first = text.first else { return text }
 
+        // Only when the cursor is on the same line as the previous word (not after a line break or indent).
         if let before, let previous = before.last(where: { !$0.isWhitespace }),
-           before.last.map({ !$0.isNewline }) ?? true,
+           !before.reversed().prefix(while: \.isWhitespace).contains(where: \.isNewline),
            continuesSentence(previous) {
             text = lowercasingFirstWord(text, keepCapitalized: keepCapitalized)
         }
 
-        if let after, after.isLetter || after.isNumber {
+        if let after, after.isLetter || after.isNumber, text.last.map({ !$0.isWhitespace }) ?? false {
             // Inserting in front of more words: the sentence carries on, so no full stop, and keep a gap.
             if text.hasSuffix("."), !text.hasSuffix("..") { text.removeLast() }
             text += " "
@@ -34,7 +35,8 @@ public enum InsertionFormatter {
 
     /// After a word or a comma the sentence is still going, so the next word shouldn't be capitalized.
     static func continuesSentence(_ previous: Character) -> Bool {
-        previous.isLetter || previous.isNumber || ",;:-–—(".contains(previous)
+        // Not "-": at the start of a line that's a bullet, and the item should stay capitalized.
+        previous.isLetter || previous.isNumber || ",;:–—(".contains(previous)
     }
 
     static func needsLeadingSpace(after previous: Character, first: Character) -> Bool {

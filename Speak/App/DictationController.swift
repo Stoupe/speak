@@ -101,8 +101,10 @@ final class DictationController {
             polisher.prewarm(context: PolishContext())
         }
         // Permissions are requested from the setup window (with an explanation), not with bare system prompts.
+        // After the first run, only reappear if something Speak can't work without is missing.
         let status = SetupStatus()
-        if !UserDefaults.standard.bool(forKey: Preferences.setupCompleted) || !status.requiredStepsDone {
+        if !UserDefaults.standard.bool(forKey: Preferences.setupCompleted)
+            || status.microphone != .granted || !status.accessibility {
             showSetup()
         }
     }
@@ -125,11 +127,8 @@ final class DictationController {
                 try? await Task.sleep(for: .seconds(1))
             }
             // Modifier keys arrive with Accessibility alone; other keys (used to cancel) may also need
-            // Input Monitoring, which macOS normally grants alongside. Ask only if it's actually missing.
-            if !CGPreflightListenEventAccess() {
-                log.info("input monitoring missing; requesting")
-                CGRequestListenEventAccess()
-            }
+            // Input Monitoring, which macOS has granted alongside so far. Log it so it's diagnosable.
+            log.info("input monitoring: \(CGPreflightListenEventAccess())")
             hasAccessibility = true
         }
     }
@@ -232,8 +231,14 @@ final class DictationController {
         isRecording = true
         pill.resetLevels()
         pill.handsFree = false
-        updatePill()
-        playSound("Tink")
+        // Show the pill and play the sound only once it's clearly a dictation, not a quick tap or a
+        // modifier shortcut (e.g. right ⌘C when right ⌘ is the trigger) that cancels straight away.
+        Task {
+            try? await Task.sleep(for: .milliseconds(150))
+            guard current?.recorderID == recorderID else { return }
+            updatePill()
+            playSound("Tink")
+        }
         if polishEnabled { polisher.prewarm(context: context) }
     }
 
@@ -274,10 +279,14 @@ final class DictationController {
                 raw = text
             case .some(.failure(let error)):
                 log.error("transcription failed: \(String(describing: error), privacy: .public)")
+                await recording.incremental.cancel()
                 return showNotice("Couldn't transcribe")
             case .none:
                 recording.feed.cancel()
-                Task { await session.cancel() }
+                Task {
+                    await session.cancel()
+                    await recording.incremental.cancel()
+                }
                 return showNotice("Transcription timed out")
             }
             // The finalized stream has ended; make sure its last update reached the polisher before finishing.

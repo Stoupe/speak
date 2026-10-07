@@ -35,6 +35,12 @@ import Testing
         #expect(format("Sarah said yes.", before: "and") == " Sarah said yes.")
     }
 
+    @Test func lineStartsAndBulletsKeepCapitals() {
+        #expect(format("Next item.", before: "- ") == "Next item.")
+        #expect(format("Next item.", before: "it\n  ") == "Next item.")
+        #expect(format("Thanks.\n\n", before: nil, after: "H") == "Thanks.\n\n")
+    }
+
     @Test func insertingBeforeMoreTextDropsFullStop() {
         #expect(format("Quick", before: "the ", after: "b") == "quick ")
         #expect(format("Really quick.", before: "the ", after: "b") == "really quick ")

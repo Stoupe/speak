@@ -87,6 +87,28 @@ private final class RecordingPolisher: TextPolisher, @unchecked Sendable {
         #expect(pending[cut...].trimmingCharacters(in: .whitespaces) == "Some words here.")
     }
 
+    @Test func commandAtTheStartOfAPieceIsKept() {
+        let segments = SpokenCommands.split("New paragraph. And here is more.")
+        #expect(segments == [.init(text: "", breakAfter: .paragraph), .init(text: "And here is more.")])
+        let joined = SpokenCommands.join([.init(text: "Done for today.")] + segments)
+        #expect(joined == "Done for today.\n\nAnd here is more.")
+    }
+
+    @Test func neverCutsBeforeASpokenBreak() {
+        let pending = String(repeating: "Some words here. ", count: 8) + "New paragraph. And more."
+        let cut = IncrementalPolish.cutPoint(in: pending, minimum: 50)!
+        #expect(!pending[cut...].trimmingCharacters(in: .whitespaces).hasPrefix("New paragraph"))
+    }
+
+    @Test func cancelStopsFurtherWork() async throws {
+        let polisher = RecordingPolisher(delay: .milliseconds(50))
+        let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polisher), context: .init(), minimumPiece: 50)
+        await incremental.cancel()
+        await incremental.update(finalized: String(repeating: "This is a sentence of decent length. ", count: 6))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(polisher.calls.withLock { $0.isEmpty })
+    }
+
     @Test func spokenCommandsBecomeBreaks() async {
         let polisher = RecordingPolisher()
         let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polisher), context: .init())

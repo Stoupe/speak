@@ -72,11 +72,26 @@ Speak.app
 - [x] History in menu bar (click to copy, "Paste last")
 - [x] Settings window: microphone, dictionary, launch at login (`SMAppService`)
 - [x] Smart spacing: add a leading space when the caret follows a non-space character (read via AX)
-- [ ] Mid-sentence capitalization ("and Hey…" when dictating after existing text) — decide after hands-on use
+- [x] Mid-sentence capitalization, spacing and trailing full stop from the text around the cursor
 - [ ] Optional: FluidAudio engine + bake-off on ~20 of my own clips (WER + latency), keep the winner
+
+### Phase 4 — Polish & shareable
+- [x] Clipboard restored only after the target app reads the paste (fixes old-clipboard pastes)
+- [x] Polish while speaking (pieces of finished sentences); "new line" / "new paragraph" commands
+- [x] Guard against the model summarizing (dropped-content check)
+- [x] App icon (Icon Composer) + menu bar glyphs
+- [x] Trigger key choice: fn / right ⌥ / right ⌘
+- [x] First-run setup window explaining permissions
+- [x] History: ⌥ to copy the original transcript
+- [x] About panel, version 0.2, README
+- [ ] Hands-on test of all of the above
+- [ ] Developer ID signing (needs a Developer ID Application certificate — ask before creating)
+- [ ] Notarization (uploads to Apple's automated check — ask before submitting)
 
 ### Later / maybe
 - [ ] Cloud engines
+- [ ] Pause media while dictating (decided against for now)
+- [ ] Paragraphs from pauses (decided against: pauses are often just thinking)
 - [ ] Command mode (select text, speak an edit)
 - [ ] Snippets
 
@@ -107,3 +122,6 @@ Speak.app
   (processed during prewarm on Fn down): typical polish now 0.4–0.9 s. Timeout now 2 s + 10 ms/char (max 8 s);
   model prewarmed at launch. Known weak spots: code style invents snake_case identifiers; ordinals ("1st")
   and some mis-hearings ("docks") aren't fixed; email isn't reflowed into paragraphs.
+- 2026-10-08 — Long dictations: one-shot polish took >20 s on M1 (and the model summarized). Now polished in
+  ~120-char pieces while speaking; wait after release ~1–2 s for a 1-minute ramble. Model calls can fail with
+  ModelManagerError 1013 under CriticalMemoryPressure (8 GB Mac); Speak falls back to raw text.

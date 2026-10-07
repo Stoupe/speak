@@ -34,9 +34,12 @@ public enum SpokenCommands {
             let piece = String(text[cursor..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
             let breakKind: Break = text[kind].lowercased() == "line" ? .line : .paragraph
             if piece.isEmpty, let last = segments.indices.last {
-                // "new paragraph new paragraph" or a command at the very start: keep the strongest break.
+                // "new paragraph new paragraph": keep the strongest break.
                 if segments[last].breakAfter != .paragraph { segments[last].breakAfter = breakKind }
-            } else if !piece.isEmpty {
+            } else if piece.isEmpty {
+                // A command at the very start: an empty segment carries the break (joined onto what came before).
+                segments.append(Segment(text: "", breakAfter: breakKind))
+            } else {
                 segments.append(Segment(text: piece, breakAfter: breakKind))
             }
             cursor = range.upperBound
@@ -51,6 +54,14 @@ public enum SpokenCommands {
         var result = ""
         for segment in segments {
             var text = segment.text
+            if text.isEmpty {
+                // A bare break: replaces any space we'd otherwise put before the next text.
+                if let breakAfter = segment.breakAfter {
+                    while result.hasSuffix(" ") { result.removeLast() }
+                    if !result.hasSuffix("\n") { result += breakAfter.rawValue }
+                }
+                continue
+            }
             if result.hasSuffix("\n"), let first = text.first {
                 text = first.uppercased() + text.dropFirst()
             } else if !result.isEmpty, !text.isEmpty {

@@ -42,6 +42,11 @@ import Testing
         #expect(PolishGuard.rejection(raw: raw, polished: summarized) == .droppedContent)
         let faithful = "The app takes like four seconds to launch on an iPhone 12, which is too slow, and I think it's because we load all the images up front. So my plan is to lazy load them."
         #expect(PolishGuard.rejection(raw: raw, polished: faithful) == nil)
+        // Numbers written as digits, and whole-clause corrections, are fine.
+        #expect(PolishGuard.rejection(raw: "The budget is twenty five thousand four hundred dollars.", polished: "The budget is $25,400.") == nil)
+        #expect(PolishGuard.rejection(
+            raw: "Can you send the quarterly numbers to Sam by Friday? Actually no, scratch that, I'll grab them myself.",
+            polished: "I'll grab them myself.") == nil)
         // A self-correction legitimately drops a word or two.
         #expect(PolishGuard.rejection(raw: "Send it to John, sorry, I meant Jane, by end of day.", polished: "Send it to Jane by end of day.") == nil)
     }

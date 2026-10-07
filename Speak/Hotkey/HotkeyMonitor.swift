@@ -33,7 +33,9 @@ final class HotkeyMonitor: @unchecked Sendable {
     @discardableResult
     func start() -> Bool {
         if isRunning { return true }
+        // Mouse clicks too: with a modifier trigger, ⌘-click / ⌥-click must cancel rather than dictate.
         let mask = (1 << CGEventType.flagsChanged.rawValue) | (1 << CGEventType.keyDown.rawValue)
+            | (1 << CGEventType.leftMouseDown.rawValue) | (1 << CGEventType.rightMouseDown.rawValue)
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -96,6 +98,11 @@ final class HotkeyMonitor: @unchecked Sendable {
                 return !swallowsEscape
             }
             deliver(.otherKey)
+            return true
+
+        case .leftMouseDown, .rightMouseDown:
+            // Only matters mid-dictation; don't flood the main queue on every click otherwise.
+            if swallowsEscape { deliver(.otherKey) }
             return true
 
         default:

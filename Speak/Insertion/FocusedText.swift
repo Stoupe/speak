@@ -19,7 +19,7 @@ enum FocusedText {
         let before = beforeLength == 0
             ? ""
             : string(in: element, range: CFRange(location: selection.location - beforeLength, length: beforeLength))
-        let afterText = string(in: element, range: CFRange(location: selection.location + selection.length, length: 2))
+        let afterText = string(in: element, range: CFRange(location: selection.location + selection.length, length: 1))
         return Surroundings(before: before.map(dropBrokenSurrogate), after: afterText?.first)
     }
 

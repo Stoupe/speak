@@ -40,14 +40,19 @@ public enum PolishGuard {
 
         let rawCount = raw.count
         if trimmed.count > rawCount * 3 / 2 + 20 { return .tooLong }
-        // Self-corrections remove words, but rarely three quarters of them.
-        if rawCount >= 40, trimmed.count < rawCount / 4 { return .tooShort }
+        // Self-corrections remove words, but rarely three quarters of them (unless a whole clause was retracted).
+        let shortest = containsCorrection(raw) ? rawCount / 8 : rawCount / 4
+        if rawCount >= 40, trimmed.count < shortest { return .tooShort }
 
         // The model shouldn't summarize: a self-correction removes a word or two, not whole clauses.
         let outSet = Set(tokens(trimmed))
-        let contentWords = tokens(raw).filter { $0.count >= 4 && !fillerWords.contains($0) && !correctionWords.contains($0) }
+        let contentWords = tokens(raw).filter {
+            $0.count >= 4 && !fillerWords.contains($0) && !correctionWords.contains($0) && !numberWords.contains($0)
+        }
         let missing = contentWords.filter { !outSet.contains($0) }.count
-        if missing > max(3, contentWords.count / 5) { return .droppedContent }
+        // A spoken correction can legitimately replace a whole clause.
+        let allowed = containsCorrection(raw) ? max(6, contentWords.count / 2) : max(3, contentWords.count / 5)
+        if missing > allowed { return .droppedContent }
 
         let rawWords = Set(tokens(raw))
         let outWords = tokens(trimmed)
@@ -73,7 +78,23 @@ public enum PolishGuard {
     private static let fillerWords: Set<String> = ["um", "umm", "uh", "uhh", "er", "erm", "ah", "hmm", "mm"]
 
     /// Words that only signal a correction; dropping them is expected.
-    private static let correctionWords: Set<String> = ["actually", "sorry", "meant", "wait", "scratch", "rather", "like", "know", "mean"]
+    private static let correctionWords: Set<String> = [
+        "actually", "sorry", "meant", "wait", "scratch", "that", "rather", "like", "know", "mean",
+    ]
+
+    /// Spelled-out numbers become digits ("twenty five" → 25).
+    private static let numberWords: Set<String> = [
+        "zero", "four", "five", "nine", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+        "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty",
+        "ninety", "hundred", "thousand", "million", "billion", "percent", "first", "second", "third", "fourth",
+        "fifth",
+    ]
+
+    static func containsCorrection(_ text: String) -> Bool {
+        let joined = " " + tokens(text).joined(separator: " ") + " "
+        return ["no wait", "wait no", "actually", "scratch that", "sorry i meant", "i meant", "or rather", "make that"]
+            .contains { joined.contains(" \($0) ") }
+    }
 
     private static let correctionPhrases = [
         "no wait", "wait no", "actually", "scratch that", "i mean", "sorry i meant", "or rather", "let me rephrase",

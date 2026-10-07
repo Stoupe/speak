@@ -21,6 +21,7 @@ public actor IncrementalPolish {
     private var committed = 0
     private var finalized = ""
     private var pieces: [Task<[(SpokenCommands.Segment, PolishPipeline.Outcome)], Never>] = []
+    private var isCancelled = false
 
     /// - Parameter minimumPiece: Characters of finished sentences to collect before polishing a piece.
     public init(pipeline: PolishPipeline, context: PolishContext, minimumPiece: Int = 120) {
@@ -30,6 +31,7 @@ public actor IncrementalPolish {
     }
 
     public func update(finalized text: String) {
+        guard !isCancelled else { return }
         finalized = text
         let pending = String(text.dropFirst(committed))
         guard let cut = Self.cutPoint(in: pending, minimum: minimumPiece) else { return }
@@ -41,11 +43,16 @@ public actor IncrementalPolish {
     /// Polishes the remainder and returns the whole dictation.
     public func finish(transcript: String) async -> Result {
         // Finalized text only grows, so the final transcript should start with what we've already cut.
-        // If it somehow doesn't, polish the remainder from wherever the committed text ends.
+        // If it somehow doesn't, throw the pieces away and polish the whole transcript in one go.
         let alreadyCut = String(finalized.prefix(committed))
-        let remainder = transcript.hasPrefix(alreadyCut)
-            ? String(transcript.dropFirst(committed))
-            : String(transcript.dropFirst(min(committed, transcript.count)))
+        let remainder: String
+        if transcript.hasPrefix(alreadyCut) {
+            remainder = String(transcript.dropFirst(committed))
+        } else {
+            pieces.forEach { $0.cancel() }
+            pieces = []
+            remainder = transcript
+        }
         if !remainder.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { enqueue(remainder) }
 
         var segments: [SpokenCommands.Segment] = []
@@ -60,6 +67,7 @@ public actor IncrementalPolish {
     }
 
     public func cancel() {
+        isCancelled = true
         pieces.forEach { $0.cancel() }
         pieces = []
     }
@@ -73,12 +81,13 @@ public actor IncrementalPolish {
             _ = await previous?.value
             var results: [(SpokenCommands.Segment, PolishPipeline.Outcome)] = []
             for var segment in SpokenCommands.split(piece) {
+                guard !Task.isCancelled else { break }
                 let result = await pipeline.run(segment.text, context: context)
                 segment.text = result.text
                 results.append((segment, result.outcome))
             }
             // Ready the model for the next piece while the user keeps talking.
-            pipeline.polisher?.prewarm(context: context)
+            if !Task.isCancelled { pipeline.polisher?.prewarm(context: context) }
             return results
         })
     }
@@ -114,5 +123,7 @@ public actor IncrementalPolish {
     private static let correctionStarts = [
         "actually", "no wait", "no,", "no.", "wait", "sorry", "scratch that", "i mean", "or rather", "make that",
         "correction",
+        // Spoken breaks belong to the end of the previous piece.
+        "new line", "new paragraph",
     ]
 }
