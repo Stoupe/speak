@@ -38,6 +38,15 @@ public struct PolishPipeline: Sendable {
         self.maxTimeout = maxTimeout
     }
 
+    /// The same pipeline with every time limit multiplied by `factor`.
+    public func withTimeoutsScaled(by factor: Int) -> PolishPipeline {
+        PolishPipeline(
+            polisher: polisher,
+            timeout: timeout * factor,
+            timeoutPerCharacter: timeoutPerCharacter * factor,
+            maxTimeout: maxTimeout * factor)
+    }
+
     func timeout(for raw: String) -> Duration {
         min(timeout + timeoutPerCharacter * raw.count, maxTimeout)
     }

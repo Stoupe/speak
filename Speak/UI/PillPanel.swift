@@ -73,6 +73,18 @@ final class PillPanel: NSPanel, NSWindowDelegate {
         }
     }
 
+    /// Whether the pill (or its card) is on screen at a point in global display coordinates (origin at the
+    /// top left of the main display, as in `CGEvent.location`).
+    func showsPill(atGlobal point: CGPoint) -> Bool {
+        guard isVisible, let mainDisplay = NSScreen.screens.first else { return false }
+        let screenPoint = NSPoint(x: point.x, y: mainDisplay.frame.maxY - point.y)
+        guard frame.contains(screenPoint) else { return false }
+        let inWindow = convertPoint(fromScreen: screenPoint)
+        let fromTop = CGPoint(x: inWindow.x, y: frame.height - inWindow.y)
+        // A little slack: the glass edge is soft and the shape may still be animating.
+        return model.glassFrame.insetBy(dx: -4, dy: -4).contains(fromTop)
+    }
+
     // MARK: Position
 
     func windowDidMove(_ notification: Notification) {

@@ -12,6 +12,9 @@ final class HotkeyMonitor: @unchecked Sendable {
     /// Receives Fn / other-key / escape events on the main queue, with the system uptime at which the key
     /// actually changed (the main thread may be busy, so handling time isn't a reliable timestamp).
     var onEvent: (@MainActor (TriggerEvent, TimeInterval) -> Void)?
+    /// Receives mouse clicks made mid-dictation, with their location in global display coordinates (origin at
+    /// the top left of the main display). The receiver decides whether a click counts as `.otherKey`.
+    var onClick: (@MainActor (CGPoint, TimeInterval) -> Void)?
 
     private struct State {
         var tap: CFMachPort?
@@ -102,7 +105,7 @@ final class HotkeyMonitor: @unchecked Sendable {
 
         case .leftMouseDown, .rightMouseDown:
             // Only matters mid-dictation; don't flood the main queue on every click otherwise.
-            if swallowsEscape { deliver(.otherKey) }
+            if swallowsEscape { deliverClick(at: event.location) }
             return true
 
         default:
@@ -114,6 +117,13 @@ final class HotkeyMonitor: @unchecked Sendable {
         let time = ProcessInfo.processInfo.systemUptime
         DispatchQueue.main.async { [weak self] in
             MainActor.assumeIsolated { self?.onEvent?(event, time) }
+        }
+    }
+
+    private func deliverClick(at location: CGPoint) {
+        let time = ProcessInfo.processInfo.systemUptime
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated { self?.onClick?(location, time) }
         }
     }
 
@@ -130,7 +140,8 @@ private func hotkeyTapCallback(
         type: type,
         keyCode: event.getIntegerValueField(.keyboardEventKeycode),
         flags: event.flags,
-        sourcePID: event.getIntegerValueField(.eventSourceUnixProcessID))
+        sourcePID: event.getIntegerValueField(.eventSourceUnixProcessID),
+        location: event.location)
     return monitor.handle(tapEvent) ? Unmanaged.passUnretained(event) : nil
 }
 
@@ -140,4 +151,5 @@ struct TapEvent: Sendable {
     var keyCode: Int64
     var flags: CGEventFlags
     var sourcePID: Int64
+    var location: CGPoint
 }

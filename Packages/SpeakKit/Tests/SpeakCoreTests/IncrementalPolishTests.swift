@@ -55,12 +55,68 @@ private final class RecordingPolisher: TextPolisher, @unchecked Sendable {
         #expect(pending[..<cut].contains("Actually"))
     }
 
-    @Test func waitsForTheNextSentenceBeforeCutting() {
-        let pending = String(repeating: "Some words here. ", count: 10)
-        // Ends on a sentence boundary with nothing after: the last sentence can't be judged yet,
-        // so the cut lands before it.
-        let cut = IncrementalPolish.cutPoint(in: pending.trimmingCharacters(in: .whitespaces), minimum: 50)!
-        #expect(pending[cut...].trimmingCharacters(in: .whitespaces) == "Some words here.")
+    @Test func cutsAsSoonAsASentenceIsFinished() {
+        let pending = String(repeating: "Some words here. ", count: 10).trimmingCharacters(in: .whitespaces)
+        #expect(IncrementalPolish.cutPoint(in: pending, minimum: 50) == pending.endIndex)
+        // Not mid-sentence, and not before there's enough text.
+        #expect(IncrementalPolish.cutPoint(in: pending + " And then", minimum: 50) == pending.endIndex)
+        #expect(IncrementalPolish.cutPoint(in: "Short. Text.", minimum: 50) == nil)
+    }
+
+    @Test func aLateCorrectionIsPolishedWithTheSentenceItCorrects() async throws {
+        let polisher = RecordingPolisher()
+        let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polisher), context: .init(), minimumPiece: 50)
+        let first = "Let's meet on Tuesday at the usual place near the office."
+        await incremental.update(finalized: first)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(polisher.calls.withLock { $0 } == [first])
+
+        let corrected = first + " Actually, make that Wednesday."
+        await incremental.update(finalized: corrected)
+        let result = await incremental.finish(transcript: corrected)
+        #expect(polisher.calls.withLock { $0 } == [first, corrected])
+        #expect(result.text == corrected.uppercased())
+    }
+
+    @Test func afterReleaseTheRestIsPolishedInOneCall() async {
+        let polisher = RecordingPolisher()
+        let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polisher), context: .init(), minimumPiece: 50)
+        await incremental.endOfSpeech()
+        let text = String(repeating: sentence, count: 3).trimmingCharacters(in: .whitespaces)
+        await incremental.update(finalized: text)
+        let result = await incremental.finish(transcript: text)
+        #expect(polisher.calls.withLock { $0 } == [text])
+        #expect(result.text == text.uppercased())
+    }
+
+    @Test func piecesStillQueuedJoinTheFinalCall() async throws {
+        let polisher = RecordingPolisher(delay: .milliseconds(200))
+        let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polisher), context: .init(), minimumPiece: 50)
+        let one = sentence.trimmingCharacters(in: .whitespaces)
+        await incremental.update(finalized: one)
+        try await Task.sleep(for: .milliseconds(20))
+        // Queued behind the first piece, which the model is still working on.
+        await incremental.update(finalized: one + " " + one)
+        let all = [one, one, "And a final remark."].joined(separator: " ")
+        let result = await incremental.finish(transcript: all)
+        #expect(polisher.calls.withLock { $0 } == [one, one + " And a final remark."])
+        #expect(result.text == all.uppercased())
+    }
+
+    @Test func longRemaindersAreSplitAtSentences() {
+        let text = String(repeating: "Here is one more sentence. ", count: 12).trimmingCharacters(in: .whitespaces)
+        let parts = IncrementalPolish.split(text, longest: 100)
+        #expect(parts.count == 4)
+        #expect(parts.allSatisfy { $0.count <= 100 })
+        #expect(parts.joined() == text)
+        #expect(IncrementalPolish.split("Short.", longest: 100) == ["Short."])
+    }
+
+    @Test func piecesPolishedWhileSpeakingGetLonger() {
+        let pipeline = PolishPipeline(polisher: nil, timeout: .seconds(2), timeoutPerCharacter: .milliseconds(10), maxTimeout: .seconds(8))
+        let relaxed = pipeline.withTimeoutsScaled(by: 2)
+        #expect(relaxed.timeout(for: String(repeating: "a", count: 100)) == .seconds(6))
+        #expect(relaxed.timeout(for: String(repeating: "a", count: 1000)) == .seconds(16))
     }
 
     @Test func cancelStopsFurtherWork() async throws {
@@ -80,9 +136,9 @@ private final class RecordingPolisher: TextPolisher, @unchecked Sendable {
 
         var iterator = incremental.progress.makeAsyncIterator()
         let progress = try #require(await iterator.next())
-        let cut = String(finalized.prefix(progress.rawThrough))
-        #expect(progress.polished == cut.trimmingCharacters(in: .whitespaces).uppercased())
-        #expect(finalized.dropFirst(progress.rawThrough).trimmingCharacters(in: .whitespaces) == sentence.trimmingCharacters(in: .whitespaces))
+        let finished = finalized.trimmingCharacters(in: .whitespaces)
+        #expect(progress.polished == finished.uppercased())
+        #expect(progress.rawThrough == finished.count)
     }
 
     @Test func spokenCommandsAreJustWords() async {

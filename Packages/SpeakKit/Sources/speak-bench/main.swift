@@ -11,6 +11,8 @@ import SpeakEngines
 //   speak-bench cases <cases.json> [--style …]          polish every {"raw": …, "expected": …} case
 //   speak-bench run [--realtime] <audio>...             transcribe, then polish
 //   speak-bench long <text>                             simulate a long dictation polished while speaking
+//   speak-bench trace <audio>                           stream audio in real time like the app; timeline of
+//                                                       finalized text, polish calls and the wait after release
 
 @main
 struct SpeakBench {
@@ -46,6 +48,9 @@ struct SpeakBench {
                 let pipeline = PolishPipeline(polisher: FoundationModelsPolisher(), timeout: .seconds(10))
                 let result = await pipeline.run(args.joined(separator: " "), context: context)
                 print("\(result.outcome) in \(result.duration):\n\(result.text)")
+            case "trace":
+                guard let path = args.first else { return usage() }
+                try await runTrace(path, context: context)
             case "long":
                 try await runLong(args.joined(separator: " "), context: context)
             case "cases":
@@ -136,6 +141,68 @@ struct SpeakBench {
         print("\n\(result.text)")
     }
 
+    /// Streams an audio file in real time through the transcriber and `IncrementalPolish`, as the app does,
+    /// printing when text is finalized, when each piece is polished, and how long "release" waits.
+    static func runTrace(_ path: String, context: PolishContext) async throws {
+        let clock = ContinuousClock()
+        let start = clock.now
+        let stamp: @Sendable () -> String = {
+            let elapsed = (clock.now - start).components
+            return String(format: "%6.2fs", Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18)
+        }
+
+        let transcriber = AppleSpeechTranscriber()
+        try await transcriber.prepare()
+        let polisher = TimedPolisher(FoundationModelsPolisher(), stamp: stamp)
+        let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polisher), context: context)
+        polisher.prewarm(context: context)
+
+        let file = try AVAudioFile(forReading: URL(filePath: path))
+        print("audio \(String(format: "%.1f", Double(file.length) / file.processingFormat.sampleRate))s")
+        let session = try transcriber.begin(vocabulary: [])
+        let finalized = session.finalized
+        let partials = session.partials
+        let progress = incremental.progress
+        let feed = Task {
+            for await text in finalized {
+                print("\(stamp())  finalized → \(text.count) chars")
+                await incremental.update(finalized: text)
+            }
+        }
+        let longestVolatile = Task {
+            var longest = 0
+            for await snapshot in partials { longest = max(longest, snapshot.volatile.count) }
+            return longest
+        }
+        let pieces = Task {
+            for await done in progress { print("\(stamp())  polished through \(done.rawThrough) chars") }
+        }
+
+        // 100 ms buffers, like the mic tap, paced to real time.
+        let chunk = AVAudioFrameCount(file.processingFormat.sampleRate / 10)
+        let audioStart = clock.now
+        var sent = 0.0
+        while file.framePosition < file.length {
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: chunk) else { break }
+            try file.read(into: buffer, frameCount: chunk)
+            session.append(buffer)
+            sent += Double(buffer.frameLength) / file.processingFormat.sampleRate
+            try await Task.sleep(until: audioStart + .milliseconds(Int(sent * 1000)))
+        }
+        print("\(stamp())  ── release ──")
+        let release = clock.now
+        await incremental.endOfSpeech()
+        let raw = try await session.finish()
+        print("\(stamp())  transcript final (\(raw.count) chars) after \(clock.now - release)")
+        await feed.value
+        let result = await incremental.finish(transcript: raw)
+        await pieces.value
+        print("\(stamp())  done; waited \(clock.now - release) after release")
+        print("longest volatile (not yet finalized) tail: \(await longestVolatile.value) chars")
+        print("outcomes: \(result.outcomes)")
+        print("\n\(result.text)")
+    }
+
     static func take(_ flag: String, from args: inout [String]) -> Bool {
         guard let index = args.firstIndex(of: flag) else { return false }
         args.remove(at: index)
@@ -151,5 +218,26 @@ struct SpeakBench {
 
     static func usage() {
         print("usage: speak-bench status | transcribe [--realtime] <audio>... | run [--realtime] <audio>... | polish [--style s] <text> | cases <file.json>")
+    }
+}
+
+/// Logs each model call: when it started, how long it took, and how much text it was given.
+final class TimedPolisher: TextPolisher {
+    private let base: FoundationModelsPolisher
+    private let stamp: @Sendable () -> String
+
+    init(_ base: FoundationModelsPolisher, stamp: @escaping @Sendable () -> String) {
+        self.base = base
+        self.stamp = stamp
+    }
+
+    func availability() -> PolisherAvailability { base.availability() }
+    func prewarm(context: PolishContext) { base.prewarm(context: context) }
+
+    func polish(_ raw: String, context: PolishContext) async throws -> String {
+        let start = ContinuousClock.now
+        print("\(stamp())    model ← \(raw.count) chars")
+        defer { print("\(stamp())    model → done in \(ContinuousClock.now - start)") }
+        return try await base.polish(raw, context: context)
     }
 }

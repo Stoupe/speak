@@ -24,6 +24,9 @@ final class PillModel {
     var live = LiveTranscript()
     /// The card opens below the pill when there's no room above it (pill dragged to the top of the screen).
     var cardBelow = false
+    /// Where the glass is drawn, in the panel's content view (origin top left). Clicks elsewhere in the panel
+    /// fall through to the app underneath.
+    @ObservationIgnored var glassFrame = CGRect.zero
     /// Most recent loudness values, oldest first.
     private(set) var levels = [Float](repeating: 0, count: PillModel.barCount)
 

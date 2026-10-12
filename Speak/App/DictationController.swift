@@ -92,6 +92,12 @@ final class DictationController {
     init() {
         pill.onCancel = { [weak self] in self?.handle(.escape) }
         hotkeys.onEvent = { [weak self] event, time in self?.handle(event, at: time) }
+        hotkeys.onClick = { [weak self] location, time in
+            guard let self else { return }
+            // Clicking or dragging the pill itself isn't "another key"; any other click cancels a held dictation.
+            guard !panel.showsPill(atGlobal: location) else { return }
+            handle(.otherKey, at: time)
+        }
     }
 
     func launch() {
@@ -280,6 +286,8 @@ final class DictationController {
     private func commitRecording() {
         guard let recording = endRecording() else { return }
         playSound("Pop")
+        // Whatever is still to come gets polished in one go once the transcript is final.
+        Task { await recording.incremental.endOfSpeech() }
 
         // Generous: finishing normally takes well under a second, but long dictations have more to finalize.
         let finishTimeout = Duration.seconds(5) + (ContinuousClock.now - recording.startedAt) / 10
@@ -376,12 +384,16 @@ final class DictationController {
         update(&live)
         pill.live = LiveTranscript.compose(
             snapshot: live.snapshot, polished: live.progress.polished, polishedThrough: live.progress.rawThrough)
-        if !pill.live.isEmpty { pill.showsCard = true }
+        if !pill.live.isEmpty, !pill.showsCard {
+            pill.showsCard = true
+            log.info("card opened (hands-free: \(self.pill.handsFree), pill visible: \(self.pill.isVisible))")
+        }
     }
 
     private func closeCard(_ recorderID: Int) {
         guard live.recorderID == recorderID else { return }
         live.recorderID = nil
+        if pill.showsCard { log.info("card closed") }
         pill.showsCard = false
     }
 

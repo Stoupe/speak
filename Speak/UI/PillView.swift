@@ -1,39 +1,59 @@
 import SpeakCore
 import SwiftUI
 
-/// The floating capsule: live waveform while listening, a gentle wave while polishing. Once words arrive, a
-/// glass card grows out of it showing the text as it's recognized and cleaned up, and folds back into the
-/// capsule when the text is pasted.
+/// The floating pill: live waveform while listening, a gentle wave while polishing. Once words arrive it
+/// grows, like the Dynamic Island, into a glass card showing the text as it's recognized and cleaned up, and
+/// shrinks back into the pill when the text is pasted. One glass shape throughout; only its size changes.
 struct PillView: View {
-    static let cardWidth: CGFloat = 420
-
     let model: PillModel
-    @Namespace private var glass
 
-    private var cardVisible: Bool {
+    private var expanded: Bool {
         if case .notice = model.phase { return false }
         return model.showsCard && !model.live.isEmpty
     }
 
     var body: some View {
-        GlassEffectContainer(spacing: 8) {
-            VStack(spacing: 10) {
-                if model.cardBelow {
-                    capsule
-                    card
-                } else {
-                    card
-                    capsule
-                }
+        VStack(spacing: 0) {
+            if model.cardBelow {
+                controls
+                text
+            } else {
+                text
+                controls
             }
         }
-        .animation(.spring(duration: 0.5, bounce: 0.2), value: cardVisible)
-        .padding(.vertical, 11)
-        // Leave room around the glass for its shadow inside the transparent panel.
+        .frame(width: expanded ? Metrics.cardWidth : nil)
+        // The text is laid out at full width from the start; the clip reveals it as the shape grows.
+        .clipShape(shape)
+        .glassEffect(.regular, in: shape)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { model.glassFrame = $0 }
+        // When both change at once (the final text arrives as the card closes), the open/close spring wins.
+        .animation(expanded ? Metrics.open : Metrics.close, value: expanded)
+        .animation(Metrics.grow, value: model.live)
+        .gesture(WindowDragGesture())
+        .padding(.vertical, Metrics.margin)
+        // The pill stays put; the card grows away from it, upwards unless the pill is at the top of the screen.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: model.cardBelow ? .top : .bottom)
     }
 
-    private var capsule: some View {
+    private var shape: RoundedRectangle {
+        RoundedRectangle(
+            cornerRadius: expanded ? Metrics.cardCornerRadius : Metrics.pillHeight / 2, style: .continuous)
+    }
+
+    @ViewBuilder private var text: some View {
+        if expanded {
+            LiveText(live: model.live)
+                .padding(.horizontal, Metrics.textInset)
+                .padding(model.cardBelow ? .bottom : .top, Metrics.textInset - 4)
+                .padding(model.cardBelow ? .top : .bottom, 2)
+                .transition(AsymmetricTransition(
+                    insertion: Reveal().animation(Metrics.reveal),
+                    removal: Reveal().animation(Metrics.hide)))
+        }
+    }
+
+    private var controls: some View {
         HStack(spacing: 8) {
             switch model.phase {
             case .listening:
@@ -59,28 +79,39 @@ struct PillView: View {
             }
         }
         .padding(.horizontal, 14)
-        .frame(height: 34)
-        .glassEffect(.regular, in: .capsule)
-        .glassEffectID("capsule", in: glass)
+        .frame(height: Metrics.pillHeight)
         .animation(.smooth(duration: 0.2), value: model.handsFree)
         .animation(.smooth(duration: 0.2), value: model.phase)
-        .gesture(WindowDragGesture())
     }
+}
 
-    @ViewBuilder private var card: some View {
-        if cardVisible {
-            LiveText(live: model.live)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
-                .frame(width: Self.cardWidth)
-                .glassEffect(.regular, in: .rect(cornerRadius: 22))
-                .glassEffectID("card", in: glass)
-                .glassEffectTransition(.matchedGeometry)
-                .transition(.blurReplace)
-                // The card grows a line at a time as you talk.
-                .animation(.smooth(duration: 0.35), value: model.live)
-                .gesture(WindowDragGesture())
-        }
+/// Sizes and timing for the pill and its card, in one place for tuning.
+private enum Metrics {
+    static let pillHeight: CGFloat = 34
+    static let cardWidth: CGFloat = 420
+    static let cardCornerRadius: CGFloat = 22
+    static let textInset: CGFloat = 18
+    /// Room around the glass for its shadow inside the transparent panel (see `PillPanel.pillInset`).
+    static let margin: CGFloat = 11
+
+    /// Opening: a little bounce, like the Dynamic Island.
+    static let open = Animation.spring(duration: 0.5, bounce: 0.25)
+    /// Closing: settles without overshooting, so it doesn't wobble as the text is pasted.
+    static let close = Animation.spring(duration: 0.4, bounce: 0.1)
+    /// The card getting taller as lines are added.
+    static let grow = Animation.smooth(duration: 0.35)
+    /// Text settles in once the shape has mostly opened…
+    static let reveal = Animation.easeOut(duration: 0.3).delay(0.18)
+    /// …and leaves quickly when it closes, before the shape has shrunk much.
+    static let hide = Animation.easeIn(duration: 0.12)
+}
+
+/// Fades and un-blurs content into place.
+private struct Reveal: Transition {
+    func body(content: Content, phase: TransitionPhase) -> some View {
+        content
+            .opacity(phase.isIdentity ? 1 : 0)
+            .blur(radius: phase.isIdentity ? 0 : 8)
     }
 }
 
@@ -91,7 +122,6 @@ private struct LiveText: View {
 
     let live: LiveTranscript
     @State private var textHeight: CGFloat = 0
-    @State private var revealed = false
 
     var body: some View {
         Text(styled)
@@ -112,12 +142,6 @@ private struct LiveText: View {
                         .init(color: .black, location: 0.22),
                     ],
                     startPoint: .top, endPoint: .bottom)
-            }
-            // The text settles in just after the glass has opened.
-            .opacity(revealed ? 1 : 0)
-            .blur(radius: revealed ? 0 : 6)
-            .onAppear {
-                withAnimation(.easeOut(duration: 0.4).delay(0.15)) { revealed = true }
             }
     }
 
