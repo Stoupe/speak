@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Speak: free, private dictation for Mac</title>
+  <meta name="description" content="Hold fn and talk. Speak types clean, punctuated text into any app. It runs on your Mac, so it's private and free.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <!-- Hosted while we try the fonts out; self-host before launch so visitors' IPs don't go to Google. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Inter:opsz,wght@14..32,400..900&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <script src="demo.js" defer></script>
+</head>
+<body>
+  <!-- The app icon, drawn once. Its gradient follows the page's colour theme. -->
+  <svg class="sprite" aria-hidden="true">
+    <defs>
+      <linearGradient id="logo-fill" x1="0" y1="0" x2="0" y2="1">
+        <stop class="logo-top" offset="0"/>
+        <stop class="logo-bottom" offset="1"/>
+      </linearGradient>
+      <symbol id="logo" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="230" fill="url(#logo-fill)"/>
+        <g fill="#fff">
+          <rect x="254.7" y="423.2" width="61.8" height="177.6" rx="30.9"/>
+          <rect x="367.9" y="356.6" width="61.8" height="310.8" rx="30.9"/>
+          <rect x="481.1" y="290.0" width="61.8" height="444.0" rx="30.9"/>
+          <rect x="594.3" y="383.2" width="61.8" height="257.5" rx="30.9"/>
+          <rect x="707.5" y="441.0" width="61.8" height="142.1" rx="30.9"/>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+
+  <header class="masthead">
+    <a class="brand" href="./">
+      <svg class="logo" width="28" height="28" aria-hidden="true"><use href="#logo"/></svg>
+      Speak
+    </a>
+    <nav class="masthead-links">
+      <a class="text-link" href="#" target="_blank" rel="noopener">
+        GitHub<svg class="external" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M7 7h10v10M7 17 17 7"/></svg><span class="visually-hidden"> (opens in a new tab)</span>
+      </a>
+      <a class="button button-small" href="#download">Download</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <p class="hint">
+        <span class="hint-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        Hold <kbd>fn</kbd> in any app and talk
+      </p>
+      <h1 id="hero-title"><span class="said">Say it messy.</span> <span class="clean">Send it clean.</span></h1>
+      <p class="lede">
+        Ramble, say um, change your mind halfway. Speak turns it into tidy, punctuated text, right on your
+        Mac. Free, private and open source.
+      </p>
+      <div class="actions">
+        <!-- TODO: point at the release download and the repository once they're public. -->
+        <a class="button" href="#">Download for Mac</a>
+        <a class="button button-secondary" href="#" target="_blank" rel="noopener"><svg class="icon" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>View on GitHub</a>
+      </div>
+      <p class="note">Free. No account needed.</p>
+    </section>
+
+    <figure class="demo" data-demo>
+      <div class="desktop" role="img"
+           aria-label="Speak in a chat app. While fn is held, Speak's pill shows the words as they're heard and tidies them up. On release, the text is pasted into the message box and sent.">
+        <div class="scene" aria-hidden="true">
+          <div class="chat">
+            <div class="chat-bar">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <span class="contact"><span class="avatar">M</span>Maya</span>
+            </div>
+            <div class="messages" data-messages>
+              <p class="bubble me">How was the gig last night?</p>
+              <p class="bubble them">So good. Still recovering</p>
+              <p class="bubble them">Are we still on for the lake this weekend?</p>
+              <p class="bubble them">I can bring the paddleboards</p>
+              <p class="bubble me" data-sent>Yeah, definitely. I'm free all Saturday. Let's leave around ten, I need coffee first.</p>
+            </div>
+            <div class="composer">
+              <p class="input"><span class="placeholder" data-placeholder>Message</span><span data-input></span><span class="caret"></span></p>
+            </div>
+          </div>
+
+          <div class="pill" data-pill>
+            <div class="card" data-card>
+              <p class="live" data-live></p>
+            </div>
+            <div class="bars" data-bars></div>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        <span>Speak tidies up while you talk. Let go, and the text is in.</span>
+        <button class="demo-toggle" type="button" data-toggle aria-pressed="false" hidden>Pause</button>
+      </figcaption>
+    </figure>
+
+    <ul class="benefits" aria-label="Why Speak">
+      <li>
+        <h2>Free</h2>
+        <p>No subscription, no word limits, no account. The models already come with your Mac.</p>
+      </li>
+      <li>
+        <h2>Private</h2>
+        <p>Speech recognition and cleanup run on your Mac. Nothing goes to the cloud. Audio is never saved.</p>
+      </li>
+      <li>
+        <h2>Everywhere</h2>
+        <p>Slack, Mail, Notes, your code editor. If you can type there, you can talk there.</p>
+      </li>
+    </ul>
+
+    <section class="section" aria-labelledby="cleanup-title">
+      <h2 id="cleanup-title">It reads like you wrote it.</h2>
+      <div class="section-body">
+        <div class="compare">
+          <div class="said">
+            <h3>You say</h3>
+            <p>hi Sam um so I had a look at the draft and it's really good, I just have a couple of small notes,
+              uh, can we go through them on Wednesday, no wait, Thursday afternoon, thanks, Jo</p>
+          </div>
+          <div class="typed">
+            <h3>Speak types</h3>
+            <div class="paper">
+              <p>Hi Sam,</p>
+              <p>I had a look at the draft and it's really good. I just have a couple of small notes. Can we go
+                through them on Thursday afternoon?</p>
+              <p>Thanks,<br>Jo</p>
+            </div>
+          </div>
+        </div>
+        <ul class="points">
+          <li>Ums and uhs, gone.</li>
+          <li>Change your mind mid-sentence. Speak keeps the final version.</li>
+          <li>Punctuation, capitals and line breaks, added.</li>
+          <li>Names and terms from your dictionary, spelled right.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="keys-title">
+      <h2 id="keys-title">One key. That's it.</h2>
+      <div class="section-body">
+        <dl class="keys">
+          <div>
+            <dt><kbd>fn</kbd> <span>hold</span></dt>
+            <dd>Talk. Let go to paste.</dd>
+          </div>
+          <div>
+            <dt><kbd>fn</kbd> <kbd>fn</kbd></dt>
+            <dd>Hands-free. Press <kbd>fn</kbd> again to finish.</dd>
+          </div>
+          <div>
+            <dt><kbd>esc</kbd></dt>
+            <dd>Cancel.</dd>
+          </div>
+        </dl>
+        <p class="aside">No <kbd>fn</kbd> key? Use right <kbd>⌥ option</kbd> or right <kbd>⌘ command</kbd>.</p>
+      </div>
+    </section>
+
+    <section class="cta" id="download" aria-labelledby="download-title">
+      <svg class="logo" width="72" height="72" aria-hidden="true"><use href="#logo"/></svg>
+      <h2 id="download-title">Start talking.</h2>
+      <div class="actions">
+        <a class="button" href="#">Download for Mac</a>
+        <a class="button button-secondary" href="#" target="_blank" rel="noopener"><svg class="icon" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>View on GitHub</a>
+      </div>
+      <p class="note">Free. Needs macOS 27 on Apple silicon.</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Speak for Mac</p>
+  </footer>
+</body>
+</html>

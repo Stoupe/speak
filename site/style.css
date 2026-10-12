@@ -1,0 +1,855 @@
+/* Colour theme
+   Every colour is built from one hue that slowly sweeps back and forth between mint and pink, through teal,
+   blue, indigo (the app icon) and magenta. Yellow and orange are left out: their dark shades turn brown.
+   OKLCH keeps lightness even across hues, so text contrast holds at every point. --chroma eases off where
+   strong colours would look garish. */
+
+@property --hue {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 280;
+}
+
+@property --chroma {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0.2;
+}
+
+:root {
+  color-scheme: light dark;
+  /* Starts on the app icon's indigo, a little way into the sweep. */
+  animation: drift 60s -36s linear infinite alternate;
+
+  --h: var(--hue);
+  --paper: light-dark(oklch(0.975 0.012 var(--h)), oklch(0.17 0.035 var(--h)));
+  --ink: light-dark(oklch(0.24 0.04 var(--h)), oklch(0.96 0.012 var(--h)));
+  --muted: light-dark(oklch(0.47 0.035 var(--h)), oklch(0.74 0.03 var(--h)));
+  --rule: light-dark(oklch(0.91 0.02 var(--h)), oklch(0.29 0.04 var(--h)));
+  --surface: light-dark(oklch(0.995 0.004 var(--h)), oklch(0.215 0.04 var(--h)));
+  --accent: light-dark(oklch(0.53 var(--chroma) var(--h)), oklch(0.75 calc(var(--chroma) * 0.75) var(--h)));
+  --on-accent: light-dark(#fff, oklch(0.2 0.05 var(--h)));
+  --shadow: oklch(0.3 0.15 var(--h) / 0.35);
+
+  /* SF on Apple devices (Inter is never downloaded there), Inter everywhere else. */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+  /* Bricolage Grotesque for the wordmark and headings only. */
+  --display: "Bricolage Grotesque", var(--font);
+  --page: 72rem;
+  --measure: 36rem;
+  --gutter: clamp(1.25rem, 4vw, 2.5rem);
+  --section-space: clamp(4.5rem, 11vw, 8rem);
+}
+
+@keyframes drift {
+  0% { --hue: 165; --chroma: 0.13; }
+  15% { --hue: 195; --chroma: 0.13; }
+  35% { --hue: 240; --chroma: 0.18; }
+  60% { --hue: 280; --chroma: 0.21; }
+  80% { --hue: 320; --chroma: 0.21; }
+  100% { --hue: 355; --chroma: 0.19; }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 1.0625rem/1.6 var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+/* Keycaps, wherever a key is mentioned. */
+kbd {
+  display: inline-block;
+  min-width: 1.9em;
+  padding: 0.05em 0.45em;
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  border-radius: 0.35em;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 0.85em/1.35 var(--font);
+  letter-spacing: 0;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: 0.06em;
+}
+
+.sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.logo {
+  flex: none;
+}
+
+.logo-top {
+  stop-color: oklch(0.68 0.19 var(--h));
+}
+
+.logo-bottom {
+  stop-color: oklch(0.42 0.2 calc(var(--h) - 10));
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Layout */
+
+.masthead,
+main > *,
+.footer {
+  width: min(100% - 2 * var(--gutter), var(--page));
+  margin-inline: auto;
+}
+
+.masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 1.25rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: inherit;
+  font-family: var(--display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.masthead-links {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--ink);
+  }
+}
+
+/* Lucide's arrow-up-right: the usual "leaves this site" mark. */
+.external {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Buttons */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 3rem;
+  padding: 0 1.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  text-decoration: none;
+  /* Not background-color: the theme changes it constantly, and a transition would make it lag. */
+  transition: filter 0.15s;
+
+  &:hover {
+    filter: brightness(1.1) saturate(1.1);
+  }
+}
+
+.button-secondary {
+  gap: 0.5rem;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.button-small {
+  min-height: 2.25rem;
+  padding: 0 1rem;
+  font-size: 0.9375rem;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+/* Hero */
+
+.hero {
+  display: grid;
+  justify-items: center;
+  padding-block: clamp(3rem, 8vw, 5.5rem) clamp(2.5rem, 5vw, 3.5rem);
+  text-align: center;
+
+  .note {
+    margin-top: 1rem;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(3rem, 8vw, 6rem);
+    font-weight: 750;
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* Two lines styled like the app's card: raw words dimmed, the cleaned-up version in full. The font
+     changes too, from quirky Bricolage to plain, heavy Inter. */
+  h1 span {
+    display: block;
+  }
+
+  .said {
+    color: var(--muted);
+    font-weight: 350;
+  }
+
+  .clean {
+    font-family: "Inter", var(--font);
+    font-weight: 750;
+    letter-spacing: -0.04em;
+  }
+}
+
+/* A small version of Speak's pill, with the one thing to know. */
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 1.75rem;
+  padding: 0.375rem 1rem 0.375rem 0.875rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9375rem;
+  box-shadow: 0 6px 20px -12px var(--shadow);
+}
+
+.hint-bars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 14px;
+
+  i {
+    width: 2.5px;
+    border-radius: 99px;
+    background: var(--accent);
+
+    &:nth-child(1) { height: 5px; }
+    &:nth-child(2) { height: 10px; }
+    &:nth-child(3) { height: 14px; }
+    &:nth-child(4) { height: 8px; }
+    &:nth-child(5) { height: 4px; }
+  }
+}
+
+.lede {
+  max-width: var(--measure);
+  margin-top: 1.5rem;
+  color: var(--muted);
+  font-size: clamp(1.1875rem, 2vw, 1.375rem);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+/* Demo
+   The scene is drawn on a 1000 × 560 grid (460 × 560 on narrow screens) and scales with its box:
+   1u = one grid unit. Sizes inside match the app in points: a 34 pt pill, a 420 pt card, 14 pt text. */
+
+.demo figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.desktop {
+  container-type: inline-size;
+  overflow: hidden;
+  border-radius: clamp(1.25rem, 3vw, 2rem);
+  background:
+    radial-gradient(70% 60% at 18% 8%, rgb(255 255 255 / 0.28), transparent 70%),
+    radial-gradient(60% 70% at 92% 100%, oklch(0.26 0.13 calc(var(--h) - 15)), transparent 70%),
+    linear-gradient(160deg,
+      oklch(0.72 calc(var(--chroma) * 0.8) calc(var(--h) + 15)),
+      oklch(0.5 var(--chroma) var(--h)) 55%,
+      oklch(0.34 calc(var(--chroma) * 0.8) calc(var(--h) - 15)));
+}
+
+.scene {
+  --u: calc(100cqi / 1000);
+  --spring-open: linear(0, 0.017, 0.062, 0.127, 0.203, 0.287, 0.372, 0.457, 0.538, 0.614, 0.683, 0.745,
+    0.799, 0.847, 0.887, 0.921, 0.949, 0.971, 0.989, 1.003, 1.013, 1.02, 1.025, 1.027, 1.028, 1.028, 1.027,
+    1.026, 1.023, 1.021, 1.019, 1.016, 1.014, 1.012, 1.01, 1.008, 1.006, 1.005, 1.004, 1.003, 1);
+  --spring-close: linear(0, 0.01, 0.035, 0.073, 0.12, 0.171, 0.227, 0.284, 0.341, 0.397, 0.452, 0.504,
+    0.553, 0.599, 0.642, 0.682, 0.718, 0.752, 0.782, 0.809, 0.834, 0.856, 0.876, 0.893, 0.908, 0.922, 0.934,
+    0.944, 0.953, 0.961, 0.968, 0.974, 0.978, 0.983, 0.986, 0.989, 0.992, 0.994, 0.996, 0.997, 1);
+
+  position: relative;
+  height: calc(560 * var(--u));
+  font-size: calc(14 * var(--u));
+  line-height: 1.4;
+}
+
+/* A small chat window */
+
+.chat {
+  position: absolute;
+  top: calc(36 * var(--u));
+  left: 50%;
+  translate: -50% 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: calc(400 * var(--u));
+  height: calc(330 * var(--u));
+  overflow: hidden;
+  border-radius: calc(14 * var(--u));
+  background: #fff;
+  color: #1d1b2e;
+  box-shadow:
+    0 0 0 0.5px rgb(0 0 0 / 0.25),
+    0 calc(24 * var(--u)) calc(60 * var(--u)) calc(-12 * var(--u)) rgb(20 10 80 / 0.55);
+}
+
+.chat-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: calc(10 * var(--u)) calc(14 * var(--u));
+  border-bottom: 1px solid #ebeaf2;
+}
+
+.lights {
+  display: flex;
+  gap: calc(8 * var(--u));
+
+  i {
+    width: calc(12 * var(--u));
+    height: calc(12 * var(--u));
+    border-radius: 50%;
+    background: #ff5f57;
+
+    &:nth-child(2) { background: #febc2e; }
+    &:nth-child(3) { background: #28c840; }
+  }
+}
+
+.contact {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--u));
+  font-weight: 600;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: calc(26 * var(--u));
+  height: calc(26 * var(--u));
+  border-radius: 50%;
+  background: linear-gradient(#ffb36b, #f0745a);
+  color: #fff;
+  font-size: calc(12 * var(--u));
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: calc(6 * var(--u));
+  min-height: 0;
+  overflow: hidden;
+  padding: calc(14 * var(--u));
+}
+
+.bubble {
+  max-width: 78%;
+  padding: calc(7 * var(--u)) calc(12 * var(--u));
+  border-radius: calc(17 * var(--u));
+
+  &.them {
+    align-self: flex-start;
+    background: #eeedf3;
+  }
+
+  &.me {
+    align-self: flex-end;
+    background: #2f7bf6;
+    color: #fff;
+  }
+
+  &.me + .them,
+  &.them + .me {
+    margin-top: calc(6 * var(--u));
+  }
+
+  &.is-arriving {
+    animation: send 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+
+  &.is-leaving {
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+}
+
+.composer {
+  padding: calc(10 * var(--u)) calc(14 * var(--u)) calc(14 * var(--u));
+}
+
+.input {
+  min-height: calc(34 * var(--u));
+  padding: calc(7 * var(--u)) calc(14 * var(--u));
+  border: 1px solid #e2e1ea;
+  border-radius: calc(17 * var(--u));
+
+  [data-input] {
+    border-radius: 3px;
+    transition: background-color 0.8s;
+
+    &.is-new {
+      background: rgb(47 123 246 / 0.2);
+      transition: none;
+    }
+  }
+}
+
+.placeholder {
+  color: #a3a1b3;
+}
+
+.caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.2em;
+  vertical-align: text-bottom;
+  background: #2f7bf6;
+  animation: blink 1.1s steps(1) infinite;
+}
+
+/* Speak's pill: one glass shape that grows into the card. */
+
+.pill {
+  position: absolute;
+  bottom: calc(14 * var(--u));
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  width: calc(134 * var(--u));
+  overflow: hidden;
+  border-radius: calc(17 * var(--u));
+  background: rgb(255 255 255 / 0.62);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.75),
+    inset 0 0 0 1px rgb(255 255 255 / 0.35),
+    0 calc(8 * var(--u)) calc(24 * var(--u)) rgb(20 10 70 / 0.28);
+  color: #1d1b2e;
+  opacity: 0;
+  scale: 0.85;
+  transition:
+    opacity 0.2s,
+    scale 0.3s var(--spring-open),
+    width 0.37s var(--spring-close),
+    border-radius 0.37s var(--spring-close);
+
+  &.is-shown {
+    opacity: 1;
+    scale: 1;
+  }
+
+  &.is-open {
+    width: calc(420 * var(--u));
+    border-radius: calc(22 * var(--u));
+    transition:
+      opacity 0.2s,
+      scale 0.3s var(--spring-open),
+      width 0.62s var(--spring-open),
+      border-radius 0.62s var(--spring-open);
+  }
+}
+
+/* Height is set from the script as lines arrive: springy when opening, smooth while growing. */
+.card {
+  height: 0;
+  transition: height 0.37s var(--spring-close);
+
+  .is-open & {
+    transition: height 0.62s var(--spring-open);
+  }
+
+  .is-growing & {
+    transition: height 0.35s ease-in-out;
+  }
+}
+
+/* Laid out at full width from the start; the shape reveals it as it grows. */
+.live {
+  width: calc(420 * var(--u));
+  padding: calc(16 * var(--u)) calc(18 * var(--u)) calc(2 * var(--u));
+  opacity: 0;
+  filter: blur(calc(8 * var(--u)));
+  transition: opacity 0.12s ease-in, filter 0.12s ease-in;
+
+  .is-open & {
+    opacity: 1;
+    filter: blur(0);
+    transition: opacity 0.3s ease-out 0.18s, filter 0.3s ease-out 0.18s;
+  }
+
+  /* Polished, then raw text waiting for cleanup, then words the recognizer may still change. */
+  .pending {
+    color: rgb(29 27 46 / 0.55);
+  }
+
+  .volatile {
+    color: rgb(29 27 46 / 0.33);
+  }
+
+  .word {
+    animation: word-in 0.25s ease-out;
+  }
+
+  .polished.is-new {
+    animation: polish-in 0.35s ease-out;
+  }
+}
+
+.bars {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2 * var(--u));
+  height: calc(34 * var(--u));
+
+  i {
+    width: calc(2.5 * var(--u));
+    height: calc((4 + 16 * var(--level, 0)) * var(--u));
+    border-radius: 99px;
+    background: rgb(29 27 46 / 0.85);
+    transition: height 0.08s ease-out;
+  }
+
+  /* "Working on it": the bars ripple in a slow wave. */
+  .is-processing & i {
+    animation: think 1.26s ease-in-out infinite;
+    animation-delay: calc(var(--i) * -0.07s);
+  }
+}
+
+
+/* Narrow screens: a portrait scene, so the text stays readable. */
+@container (width < 40rem) {
+  .scene {
+    --u: calc(100cqi / 460);
+
+    height: calc(560 * var(--u));
+  }
+
+  .chat {
+    top: calc(24 * var(--u));
+    width: calc(420 * var(--u));
+    height: calc(380 * var(--u));
+  }
+}
+
+.demo-toggle {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--muted);
+  }
+}
+
+@keyframes think {
+  0%, 100% { height: calc(4 * var(--u)); opacity: 0.35; }
+  50% { height: calc(10 * var(--u)); opacity: 0.75; }
+}
+
+@keyframes word-in {
+  from { opacity: 0; }
+}
+
+@keyframes polish-in {
+  from { opacity: 0; filter: blur(calc(4 * var(--u))); }
+}
+
+@keyframes send {
+  from { opacity: 0; translate: 0 calc(40 * var(--u)); scale: 0.9; }
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* Benefits: three short claims under the demo */
+
+.benefits {
+  display: grid;
+  gap: 2rem var(--gutter);
+  padding-top: var(--section-space);
+
+  h2 {
+    margin-bottom: 0.5rem;
+    font-family: var(--display);
+    font-size: clamp(1.75rem, 3.4vw, 2.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    max-width: 22rem;
+    color: var(--muted);
+  }
+
+  @media (width >= 48rem) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Sections: heading on the left, content on the right */
+
+.section {
+  display: grid;
+  gap: 1.5rem;
+  padding-top: var(--section-space);
+
+  h2 {
+    font-family: var(--display);
+    font-size: clamp(1.75rem, 3.6vw, 2.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  @media (width >= 56rem) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: var(--gutter);
+  }
+}
+
+.section-body {
+  display: grid;
+  gap: 1.75rem;
+  max-width: 44rem;
+}
+
+.aside {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.points {
+  display: grid;
+  gap: 0.625rem;
+
+  li {
+    position: relative;
+    padding-left: 1.5rem;
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0.65em;
+      left: 0.25rem;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+  }
+}
+
+/* Before and after: the spoken words as plain text, the result on a page. */
+.compare {
+  display: grid;
+  gap: 1.5rem;
+
+  h3 {
+    margin-bottom: 0.75rem;
+    color: var(--muted);
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+
+  @media (width >= 40rem) {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+}
+
+.said p {
+  color: var(--muted);
+  font-size: 1.1875rem;
+  line-height: 1.55;
+}
+
+.paper {
+  display: grid;
+  gap: 0.9em;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--rule),
+    0 12px 30px -18px var(--shadow);
+}
+
+/* Keys */
+
+.keys {
+  display: grid;
+
+  > div {
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    gap: 1rem;
+    align-items: baseline;
+    padding-block: 1rem;
+    border-top: 1px solid var(--rule);
+
+    &:last-child {
+      border-bottom: 1px solid var(--rule);
+    }
+  }
+
+  dt {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  dd {
+    font-size: 1.1875rem;
+  }
+}
+
+/* Closing call to action */
+
+.cta {
+  display: grid;
+  justify-items: center;
+  gap: 1.25rem;
+  padding-block: var(--section-space);
+  text-align: center;
+
+  .logo {
+    filter: drop-shadow(0 12px 18px var(--shadow));
+  }
+
+  .actions {
+    margin-top: 0.5rem;
+  }
+
+  h2 {
+    font-family: var(--display);
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 750;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+}
+
+.footer {
+  padding-block: 2rem 3rem;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+@media (width < 40rem) {
+  .keys > div {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

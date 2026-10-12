@@ -1,7 +1,7 @@
 # Speak
 
 Local-only Wispr Flow–style dictation for macOS 27. **Read `PLAN.md` first** — it holds the decisions,
-architecture and progress checklist. Tick items and add dated log entries there as work lands.
+architecture and to-do list. Keep it current as work lands, and add anything learned the hard way under Notes.
 
 ## Layout
 - `Packages/SpeakKit` — `SpeakCore` (pure logic: trigger state machine, polish guard/pipeline, history),
@@ -9,6 +9,8 @@ architecture and progress checklist. Tick items and add dated log entries there 
 - `Speak/` — app target (folder-synced; new files are picked up automatically): event tap, audio capture,
   paste insertion, pill panel, menu, settings.
 - `Bench/polish-cases.json` — raw → expected cases for prompt tuning.
+- `site/` — landing page: plain HTML + CSS (+ `demo.js` for the hero demo), no build step. Separate from the app; nothing in Xcode or SwiftPM
+  reads it. Never put web files in `Speak/` (that folder is bundled into the app).
 
 ## Commands
 ```sh

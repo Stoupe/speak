@@ -54,3 +54,7 @@ open Speak.xcodeproj    # set your own team under Signing & Capabilities, then R
 ```
 
 Development notes are in `CLAUDE.md` and the roadmap in `PLAN.md`.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
