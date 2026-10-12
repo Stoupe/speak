@@ -98,7 +98,7 @@ public enum PolishGuard {
 
     private static let correctionPhrases = [
         "no wait", "wait no", "actually", "scratch that", "i mean", "sorry i meant", "or rather", "let me rephrase",
-        "you know", "new line", "new paragraph", "bullet point",
+        "you know",
     ]
 
     private static let preambles = [

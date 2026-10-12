@@ -1,4 +1,5 @@
 import Observation
+import SpeakCore
 import SwiftUI
 
 @MainActor
@@ -17,6 +18,12 @@ final class PillModel {
     var isVisible = false
     var phase: Phase = .listening
     var handsFree = false
+    /// The text card above the pill. It opens with the first words and closes back into the pill as the
+    /// text is pasted.
+    var showsCard = false
+    var live = LiveTranscript()
+    /// The card opens below the pill when there's no room above it (pill dragged to the top of the screen).
+    var cardBelow = false
     /// Most recent loudness values, oldest first.
     private(set) var levels = [Float](repeating: 0, count: PillModel.barCount)
 

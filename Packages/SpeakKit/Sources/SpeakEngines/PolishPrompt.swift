@@ -21,6 +21,7 @@ public enum PolishPrompt {
             keep only the corrected version.
             """,
             "- Fix punctuation and capitalization. Split run-on sentences.",
+            "- Add line breaks yourself: greetings and sign-offs on their own lines, a blank line before a new topic.",
             "- Keep everything else exactly as said: every clause and detail, the same words and spelling, greetings, sign-offs, tone and sentence type.",
             "- Do not summarize, shorten, rephrase, add words, or turn statements into questions.",
             "- Reply with the cleaned text only. No quotes, labels or explanations.",
@@ -32,7 +33,7 @@ public enum PolishPrompt {
         case .chat:
             lines.append("- This is a chat message: keep it casual. No trailing period needed on a single short sentence.")
         case .email:
-            lines.append("- This is an email: put a greeting and a sign-off on their own lines, with paragraphs between.")
+            lines.append("- This is an email: always put the greeting and the sign-off on their own lines, with blank lines around the body.")
         case .code:
             lines.append("""
             - This is going into a code editor or terminal: keep wording literal. Don't invent identifiers, \
@@ -49,6 +50,7 @@ public enum PolishPrompt {
         for (raw, cleaned) in examples {
             lines.append("Transcript: \(raw)")
             lines.append("Cleaned: \(cleaned)")
+            lines.append("")
         }
         return lines.joined(separator: "\n")
     }
@@ -67,7 +69,10 @@ public enum PolishPrompt {
            (first == "\"" && last == "\"") || (first == "“" && last == "”") {
             text = String(text.dropFirst().dropLast())
         }
-        return text
+        // Markdown-style hard breaks ("Cheers,  \n").
+        return text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { String($0.reversed().drop(while: { $0 == " " }).reversed()) }
+            .joined(separator: "\n")
     }
 
     static let examples: [(String, String)] = [
@@ -81,5 +86,7 @@ public enum PolishPrompt {
          "I think we should probably wait until the data comes in."),
         ("the build is like really slow on my laptop which is annoying and I think it's because uh we compile the assets every time so my plan is to cache them",
          "The build is like really slow on my laptop, which is annoying, and I think it's because we compile the assets every time. So my plan is to cache them."),
+        ("hi Tom thanks for sending the photos they look great uh see you on Saturday cheers Anna",
+         "Hi Tom,\n\nThanks for sending the photos, they look great. See you on Saturday.\n\nCheers,\nAnna"),
     ]
 }

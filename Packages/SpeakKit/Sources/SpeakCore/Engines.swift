@@ -13,13 +13,26 @@ public protocol TranscriptionSession: AnyObject, Sendable {
     /// Feeds microphone audio. Called on the audio thread, serially.
     func append(_ buffer: AVAudioPCMBuffer)
     /// Running transcript (finalized + volatile text) as it changes.
-    var partials: AsyncStream<String> { get }
+    var partials: AsyncStream<TranscriptSnapshot> { get }
     /// Finalized text so far, each time it grows. Finalized text never changes, it only gets longer.
     var finalized: AsyncStream<String> { get }
     /// Ends input and returns the final transcript.
     func finish() async throws -> String
     /// Ends input and discards everything.
     func cancel() async
+}
+
+/// The transcript at one moment while dictating.
+public struct TranscriptSnapshot: Sendable, Equatable {
+    /// Text that won't change any more (the same text the `finalized` stream reports).
+    public var finalized: String
+    /// Text after it that the recognizer may still revise.
+    public var volatile: String
+
+    public init(finalized: String = "", volatile: String = "") {
+        self.finalized = finalized
+        self.volatile = volatile
+    }
 }
 
 /// Where the text is going, so the polisher can match tone.

@@ -5,8 +5,14 @@ import SwiftUI
 /// without ever taking focus from the app you're dictating into.
 @MainActor
 final class PillPanel: NSPanel, NSWindowDelegate {
-    private static let size = NSSize(width: 220, height: 56)
-    private static let originKey = "pillOrigin"
+    /// Room for the text card above (or below) the pill. Clicks on the transparent parts pass through.
+    private static let size = NSSize(width: 480, height: 220)
+    /// Distance from the panel's bottom edge (top edge when the card opens downwards) to the pill's centre.
+    private static let pillInset: CGFloat = 28
+    /// The pill's centre on screen.
+    private static let anchorKey = "pillAnchor"
+    /// Before the text card, the panel's origin was saved instead (panel 220 × 56, pill centred).
+    private static let legacyOriginKey = "pillOrigin"
 
     private let model: PillModel
     private var isPositioning = false
@@ -71,34 +77,57 @@ final class PillPanel: NSPanel, NSWindowDelegate {
 
     func windowDidMove(_ notification: Notification) {
         guard !isPositioning else { return }
-        UserDefaults.standard.set(NSStringFromPoint(frame.origin), forKey: Self.originKey)
+        UserDefaults.standard.set(NSStringFromPoint(anchor(of: frame)), forKey: Self.anchorKey)
     }
 
     private func resetPosition() {
         isPositioning = true
-        setFrame(NSRect(origin: defaultOrigin(), size: Self.size), display: true, animate: true)
+        let anchor = defaultAnchor()
+        model.cardBelow = false
+        setFrame(frame(for: anchor), display: true, animate: true)
         isPositioning = false
-        UserDefaults.standard.removeObject(forKey: Self.originKey)
+        UserDefaults.standard.removeObject(forKey: Self.anchorKey)
     }
 
     private func placeAtSavedOrDefaultPosition() {
         isPositioning = true
         defer { isPositioning = false }
-        if let saved = UserDefaults.standard.string(forKey: Self.originKey) {
-            let origin = NSPointFromString(saved)
-            let frame = NSRect(origin: origin, size: Self.size)
-            // Only reuse it if it's still on a connected screen.
-            if NSScreen.screens.contains(where: { $0.visibleFrame.intersects(frame) }) {
-                setFrameOrigin(origin)
-                return
-            }
+        var anchor = defaultAnchor()
+        if let saved = savedAnchor(),
+           // Only reuse it if it's still on a connected screen.
+           let screen = NSScreen.screens.first(where: { $0.visibleFrame.contains(saved) }) {
+            anchor = saved
+            // Open the card downwards if there isn't room for it above the pill.
+            model.cardBelow = screen.visibleFrame.maxY - anchor.y < Self.size.height - Self.pillInset
+        } else {
+            model.cardBelow = false
         }
-        setFrameOrigin(defaultOrigin())
+        setFrameOrigin(frame(for: anchor).origin)
     }
 
-    private func defaultOrigin() -> NSPoint {
+    private func savedAnchor() -> NSPoint? {
+        let defaults = UserDefaults.standard
+        if let saved = defaults.string(forKey: Self.anchorKey) { return NSPointFromString(saved) }
+        guard let legacy = defaults.string(forKey: Self.legacyOriginKey) else { return nil }
+        defaults.removeObject(forKey: Self.legacyOriginKey)
+        let origin = NSPointFromString(legacy)
+        let anchor = NSPoint(x: origin.x + 110, y: origin.y + 28)
+        defaults.set(NSStringFromPoint(anchor), forKey: Self.anchorKey)
+        return anchor
+    }
+
+    private func frame(for anchor: NSPoint) -> NSRect {
+        let y = model.cardBelow ? anchor.y + Self.pillInset - Self.size.height : anchor.y - Self.pillInset
+        return NSRect(origin: NSPoint(x: anchor.x - Self.size.width / 2, y: y), size: Self.size)
+    }
+
+    private func anchor(of frame: NSRect) -> NSPoint {
+        NSPoint(x: frame.midX, y: model.cardBelow ? frame.maxY - Self.pillInset : frame.minY + Self.pillInset)
+    }
+
+    private func defaultAnchor() -> NSPoint {
         let screen = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? .zero
-        return NSPoint(x: screen.midX - Self.size.width / 2, y: screen.minY + 12)
+        return NSPoint(x: screen.midX, y: screen.minY + 12 + Self.pillInset)
     }
 }
 

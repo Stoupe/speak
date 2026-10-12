@@ -2,30 +2,6 @@ import Foundation
 import Testing
 @testable import SpeakCore
 
-@Suite struct SpokenCommandsTests {
-    @Test func splitsOnCommandsWithTranscriberPunctuation() {
-        let segments = SpokenCommands.split("Hi Sam. New paragraph. Thanks for this, new line. Henry")
-        #expect(segments == [
-            .init(text: "Hi Sam.", breakAfter: .paragraph),
-            .init(text: "Thanks for this", breakAfter: .line),
-            .init(text: "Henry"),
-        ])
-        #expect(SpokenCommands.join(segments) == "Hi Sam.\n\nThanks for this\nHenry")
-    }
-
-    @Test func noCommandsIsOneSegment() {
-        #expect(SpokenCommands.split("Just a sentence.") == [.init(text: "Just a sentence.")])
-        #expect(SpokenCommands.split("") == [.init(text: "")])
-    }
-
-    @Test func joinCapitalizesAfterBreaks() {
-        let joined = SpokenCommands.join([
-            .init(text: "first point", breakAfter: .line), .init(text: "second point"),
-        ])
-        #expect(joined == "first point\nSecond point")
-    }
-}
-
 /// Uppercases its input after a short delay and records what it was asked to polish.
 private final class RecordingPolisher: TextPolisher, @unchecked Sendable {
     let calls = Locked<[String]>([])
@@ -87,19 +63,6 @@ private final class RecordingPolisher: TextPolisher, @unchecked Sendable {
         #expect(pending[cut...].trimmingCharacters(in: .whitespaces) == "Some words here.")
     }
 
-    @Test func commandAtTheStartOfAPieceIsKept() {
-        let segments = SpokenCommands.split("New paragraph. And here is more.")
-        #expect(segments == [.init(text: "", breakAfter: .paragraph), .init(text: "And here is more.")])
-        let joined = SpokenCommands.join([.init(text: "Done for today.")] + segments)
-        #expect(joined == "Done for today.\n\nAnd here is more.")
-    }
-
-    @Test func neverCutsBeforeASpokenBreak() {
-        let pending = String(repeating: "Some words here. ", count: 8) + "New paragraph. And more."
-        let cut = IncrementalPolish.cutPoint(in: pending, minimum: 50)!
-        #expect(!pending[cut...].trimmingCharacters(in: .whitespaces).hasPrefix("New paragraph"))
-    }
-
     @Test func cancelStopsFurtherWork() async throws {
         let polisher = RecordingPolisher(delay: .milliseconds(50))
         let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polisher), context: .init(), minimumPiece: 50)
@@ -109,12 +72,53 @@ private final class RecordingPolisher: TextPolisher, @unchecked Sendable {
         #expect(polisher.calls.withLock { $0.isEmpty })
     }
 
-    @Test func spokenCommandsBecomeBreaks() async {
+    @Test func reportsEachPolishedPiece() async throws {
         let polisher = RecordingPolisher()
-        let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polisher), context: .init())
-        let result = await incremental.finish(
-            transcript: "um hi sam, new paragraph. thanks for the notes, they were uh really useful. new line. henry")
-        // Short clean segments skip the model (see PolishGuard.shouldSkip); breaks still apply.
-        #expect(result.text == "UM HI SAM\n\nTHANKS FOR THE NOTES, THEY WERE UH REALLY USEFUL.\nHenry")
+        let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polisher), context: .init(), minimumPiece: 100)
+        let finalized = String(repeating: sentence, count: 3)
+        await incremental.update(finalized: finalized)
+
+        var iterator = incremental.progress.makeAsyncIterator()
+        let progress = try #require(await iterator.next())
+        let cut = String(finalized.prefix(progress.rawThrough))
+        #expect(progress.polished == cut.trimmingCharacters(in: .whitespaces).uppercased())
+        #expect(finalized.dropFirst(progress.rawThrough).trimmingCharacters(in: .whitespaces) == sentence.trimmingCharacters(in: .whitespaces))
+    }
+
+    @Test func spokenCommandsAreJustWords() async {
+        let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: nil), context: .init())
+        let result = await incremental.finish(transcript: "Hi Sam, new paragraph. Thanks.")
+        #expect(result.text == "Hi Sam, new paragraph. Thanks.")
+    }
+
+    @Test func piecesKeepLineBreaksFromTheModel() {
+        #expect(IncrementalPolish.join("Hi Sam,\n", "Thanks.") == "Hi Sam,\nThanks.")
+        #expect(IncrementalPolish.join("One.", "Two.") == "One. Two.")
+        #expect(IncrementalPolish.join("", "Two.") == "Two.")
+    }
+}
+
+@Suite struct LiveTranscriptTests {
+    @Test func splitsPolishedPendingAndVolatile() {
+        let snapshot = TranscriptSnapshot(finalized: "um hello there. how are you", volatile: " doing today")
+        let live = LiveTranscript.compose(snapshot: snapshot, polished: "Hello there.", polishedThrough: 15)
+        #expect(live == LiveTranscript(polished: "Hello there.", pending: " how are you", volatile: " doing today"))
+    }
+
+    @Test func spacesVolatileAfterPolishedText() {
+        let snapshot = TranscriptSnapshot(finalized: "Hello there. ", volatile: " how")
+        let live = LiveTranscript.compose(snapshot: snapshot, polished: "Hello there.", polishedThrough: 13)
+        #expect(live == LiveTranscript(polished: "Hello there.", volatile: " how"))
+    }
+
+    @Test func startsWithoutLeadingSpace() {
+        let live = LiveTranscript.compose(snapshot: .init(volatile: " hello"), polished: "", polishedThrough: 0)
+        #expect(live == LiveTranscript(volatile: "hello"))
+        #expect(LiveTranscript.compose(snapshot: .init(), polished: "", polishedThrough: 0).isEmpty)
+    }
+
+    @Test func noSpaceAfterALineBreak() {
+        let live = LiveTranscript.compose(snapshot: .init(finalized: "Hi Sam. thanks"), polished: "Hi Sam,\n", polishedThrough: 7)
+        #expect(live == LiveTranscript(polished: "Hi Sam,\n", pending: "thanks"))
     }
 }

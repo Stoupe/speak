@@ -63,6 +63,14 @@ final class DictationController {
     /// A short message for the pill. Its countdown starts only once it's actually on screen, so a failure
     /// that happens while you're recording the next dictation is still shown afterwards.
     @ObservationIgnored private var notice: (message: String, dismissal: Task<Void, Never>?)?
+    /// What the pill's text card is made of, and which dictation it belongs to (nil once it has closed).
+    @ObservationIgnored private var live = LiveState()
+
+    private struct LiveState {
+        var recorderID: Int?
+        var snapshot = TranscriptSnapshot()
+        var progress = IncrementalPolish.Progress()
+    }
 
     private struct Recording {
         var session: any TranscriptionSession
@@ -76,6 +84,9 @@ final class DictationController {
         var incremental: IncrementalPolish
         /// Feeds finalized transcript text into `incremental`; ends when the session finishes.
         var feed: Task<Void, Never>
+        /// Follow the recognized and the polished text for the pill's card; end when the dictation does.
+        var liveWords: Task<Void, Never>
+        var livePolish: Task<Void, Never>
     }
 
     init() {
@@ -208,9 +219,13 @@ final class DictationController {
             style: AppStyle.forBundleID(app?.bundleIdentifier),
             vocabulary: Preferences.dictionaryWords)
         let polishEnabled = UserDefaults.standard.bool(forKey: Preferences.polishEnabled)
-        // With polishing off this still applies spoken "new line" / "new paragraph" commands.
         let incremental = IncrementalPolish(pipeline: PolishPipeline(polisher: polishEnabled ? polisher : nil), context: context)
         let finalizedText = session.finalized
+        let partials = session.partials
+        let progress = incremental.progress
+        live = LiveState(recorderID: recorderID)
+        pill.live = LiveTranscript()
+        pill.showsCard = false
         current = Recording(
             session: session,
             recorderID: recorderID,
@@ -226,6 +241,12 @@ final class DictationController {
             incremental: incremental,
             feed: Task {
                 for await text in finalizedText { await incremental.update(finalized: text) }
+            },
+            liveWords: Task {
+                for await snapshot in partials { showLive(recorderID) { $0.snapshot = snapshot } }
+            },
+            livePolish: Task {
+                for await polished in progress { showLive(recorderID) { $0.progress = polished } }
             })
 
         isRecording = true
@@ -246,6 +267,9 @@ final class DictationController {
         guard let recording = endRecording() else { return }
         recorder.stop(recording.recorderID)
         recording.feed.cancel()
+        recording.liveWords.cancel()
+        recording.livePolish.cancel()
+        closeCard(recording.recorderID)
         Task {
             await recording.session.cancel()
             await recording.incremental.cancel()
@@ -279,9 +303,11 @@ final class DictationController {
                 raw = text
             case .some(.failure(let error)):
                 log.error("transcription failed: \(String(describing: error), privacy: .public)")
+                closeCard(recording.recorderID)
                 await recording.incremental.cancel()
                 return showNotice("Couldn't transcribe")
             case .none:
+                closeCard(recording.recorderID)
                 recording.feed.cancel()
                 Task {
                     await session.cancel()
@@ -293,6 +319,7 @@ final class DictationController {
             await recording.feed.value
             log.info("raw transcript (\(raw.count) chars): \(raw, privacy: .private)")
             guard !raw.isEmpty else {
+                closeCard(recording.recorderID)
                 await recording.incremental.cancel()
                 return
             }
@@ -301,10 +328,16 @@ final class DictationController {
             let result = await recording.incremental.finish(transcript: raw)
             refreshPolisherAvailability()
             log.info("polish \(String(describing: result.outcomes), privacy: .public); waited \(ContinuousClock.now - polishStart, privacy: .public) after release: \(result.text, privacy: .private)")
+            showLive(recording.recorderID) { live in
+                live.snapshot = TranscriptSnapshot(finalized: raw)
+                live.progress = IncrementalPolish.Progress(polished: result.text, rawThrough: raw.count)
+            }
 
             // Paste in the order dictations were spoken.
             await previous?.value
             history.add(HistoryItem(raw: raw, text: result.text, appName: recording.appName))
+            // The card folds back into the pill as the text lands.
+            closeCard(recording.recorderID)
 
             // Don't paste into a different app than the one you were dictating into.
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == recording.appPID else {
@@ -328,6 +361,23 @@ final class DictationController {
         isRecording = false
         pill.handsFree = false
         return recording
+    }
+
+    // MARK: Live text
+
+    /// Updates the pill's text card, if it's still showing this dictation. The card opens with the first words.
+    private func showLive(_ recorderID: Int, _ update: (inout LiveState) -> Void) {
+        guard live.recorderID == recorderID else { return }
+        update(&live)
+        pill.live = LiveTranscript.compose(
+            snapshot: live.snapshot, polished: live.progress.polished, polishedThrough: live.progress.rawThrough)
+        if !pill.live.isEmpty { pill.showsCard = true }
+    }
+
+    private func closeCard(_ recorderID: Int) {
+        guard live.recorderID == recorderID else { return }
+        live.recorderID = nil
+        pill.showsCard = false
     }
 
     // MARK: History

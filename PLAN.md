@@ -77,7 +77,7 @@ Speak.app
 
 ### Phase 4 — Polish & shareable
 - [x] Clipboard restored only after the target app reads the paste (fixes old-clipboard pastes)
-- [x] Polish while speaking (pieces of finished sentences); "new line" / "new paragraph" commands
+- [x] Polish while speaking (pieces of finished sentences)
 - [x] Guard against the model summarizing (dropped-content check)
 - [x] App icon (Icon Composer) + menu bar glyphs
 - [x] Trigger key choice: fn / right ⌥ / right ⌘
@@ -89,6 +89,14 @@ Speak.app
 - [ ] Developer ID signing — when sharing: Xcode → Product → Archive → Distribute App → Direct Distribution
       (creates the Developer ID certificate; back it up afterwards)
 - [ ] Notarization — done by the same Direct Distribution flow; only when actually sharing
+
+### Phase 5 — Live text
+- [x] Text card above the pill: grows out of it (Liquid Glass morph) with the first words, shows polished /
+      waiting / still-changing text, folds back into the pill as the text is pasted
+- [x] Spoken "new line" / "new paragraph" commands removed; the model adds line breaks (greetings, sign-offs)
+- [ ] Hands-on test: animation feel, click-through around the card, card opening downwards at the top of the screen
+- [ ] Paragraph breaks across pieces: a layout pass that returns only break positions (words can't change)
+- [ ] Maybe: Settings toggle to hide the text (screen sharing)
 
 ### Later / maybe
 - [ ] Cloud engines
@@ -127,3 +135,11 @@ Speak.app
 - 2026-10-08 — Long dictations: one-shot polish took >20 s on M1 (and the model summarized). Now polished in
   ~120-char pieces while speaking; wait after release ~1–2 s for a 1-minute ramble. Model calls can fail with
   ModelManagerError 1013 under CriticalMemoryPressure (8 GB Mac); Speak falls back to raw text.
+- 2026-10-12 — Live text card. The transcriber's running transcript (previously unused) and each polished
+  piece from `IncrementalPolish` feed a `LiveTranscript` (polished + waiting + volatile) shown in a glass card
+  that morphs out of the pill (`GlassEffectContainer` + `glassEffectID`); it folds back as the paste happens.
+  Panel is now 480 × 220 with the pill anchored at the bottom; position saved as the pill's centre
+  (`pillAnchor`, migrated from `pillOrigin`). Spoken break commands removed: the prompt now asks the model for
+  greeting/sign-off lines and topic paragraphs. Bench: email case now matches exactly; topic paragraphs
+  still don't happen within a piece (case #14), and pieces can't start a paragraph, hence the layout-pass
+  idea. Average polish 0.68–0.83 s → ~0.90 s (noisy on 8 GB; one run 1.58 s under memory pressure).
