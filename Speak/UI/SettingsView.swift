@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage(Preferences.triggerKey) private var triggerKey = TriggerKey.fn
     @AppStorage(Preferences.polishEnabled) private var polishEnabled = true
     @AppStorage(Preferences.soundsEnabled) private var soundsEnabled = true
+    @AppStorage(Preferences.trailingSpace) private var trailingSpace = true
     @AppStorage(Preferences.dictionary) private var dictionary = ""
     @State private var microphones: [AudioDevices.Device] = []
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -23,6 +24,7 @@ struct SettingsView: View {
                     ForEach(microphones) { Text($0.name).tag($0.uid) }
                 }
                 Toggle("Polish text", isOn: $polishEnabled)
+                Toggle("Add space after dictation", isOn: $trailingSpace)
                 Toggle("Sounds", isOn: $soundsEnabled)
                 Toggle("Launch at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in setLaunchAtLogin(enabled) }
@@ -53,7 +55,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 440, height: 615)
+        .frame(width: 440, height: 655)
         .onAppear {
             microphones = AudioDevices.inputDevices()
             controller.refreshPolisherAvailability()

@@ -345,12 +345,17 @@ final class DictationController {
                 inserter.copy(result.text)
                 return showNotice("App changed — copied instead")
             }
-            let around = FocusedText.surroundings()
-            let text = InsertionFormatter.format(
-                result.text, before: around.before, after: around.after,
-                keepCapitalized: Preferences.dictionaryWords)
-            await inserter.insert(text)
+            await inserter.insert(withTrailingSpace(result.text))
         }
+    }
+
+    /// Appends a space (if enabled) so the next dictation doesn't run into this one. Only for pastes:
+    /// history and copies keep the text as is.
+    private func withTrailingSpace(_ text: String) -> String {
+        guard UserDefaults.standard.bool(forKey: Preferences.trailingSpace),
+              let last = text.last, !last.isWhitespace
+        else { return text }
+        return text + " "
     }
 
     /// Clears the current recording and its timer; the caller stops the mic and session.
@@ -388,7 +393,7 @@ final class DictationController {
 
     func pasteLast() {
         guard let last = history.items.first else { return }
-        Task { await inserter.insert(last.text) }
+        Task { await inserter.insert(withTrailingSpace(last.text)) }
     }
 
     func clearHistory() {

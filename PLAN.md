@@ -71,8 +71,7 @@ Speak.app
 - [x] Start/stop sounds (toggle in Settings)
 - [x] History in menu bar (click to copy, "Paste last")
 - [x] Settings window: microphone, dictionary, launch at login (`SMAppService`)
-- [x] Smart spacing: add a leading space when the caret follows a non-space character (read via AX)
-- [x] Mid-sentence capitalization, spacing and trailing full stop from the text around the cursor
+- [x] Space after each pasted dictation (toggle in Settings, on by default); replaced AX smart spacing
 - [ ] Optional: FluidAudio engine + bake-off on ~20 of my own clips (WER + latency), keep the winner
 
 ### Phase 4 — Polish & shareable
@@ -143,3 +142,8 @@ Speak.app
   greeting/sign-off lines and topic paragraphs. Bench: email case now matches exactly; topic paragraphs
   still don't happen within a piece (case #14), and pieces can't start a paragraph, hence the layout-pass
   idea. Average polish 0.68–0.83 s → ~0.90 s (noisy on 8 GB; one run 1.58 s under memory pressure).
+- 2026-10-12 — Removed smart spacing (`FocusedText` + `InsertionFormatter`): it read the text around the cursor
+  via Accessibility, which Electron apps and terminals don't expose, so it only worked in some apps, and that
+  kind of AX reading is blocked in a sandboxed (App Store) build. Instead every paste ends with a space unless
+  the text already ends in whitespace; history and copies keep the text without it. Accessibility is still
+  needed for the trigger key and posting ⌘V.

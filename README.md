@@ -23,6 +23,9 @@ While you talk, a card above the pill shows the text as it's recognized; every c
 cleaned-up version replaces the raw words. Line breaks and punctuation come from the cleanup, not from
 spoken commands.
 
+Each pasted dictation ends with a space, so you can stop and start again without the sentences running
+together. Turn it off in Settings.
+
 The trigger key can be changed to right Option or right Command in Settings (handy for keyboards
 without a fn/Globe key). The menu bar icon shows recent dictations: click one to copy it, or hold ⌥
 to copy what you actually said before cleanup.

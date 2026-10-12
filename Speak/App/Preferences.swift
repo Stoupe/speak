@@ -7,6 +7,8 @@ enum Preferences {
     static let setupCompleted = "setupCompleted"
     static let polishEnabled = "polishEnabled"
     static let soundsEnabled = "soundsEnabled"
+    /// Add a space after each pasted dictation.
+    static let trailingSpace = "trailingSpace"
     /// Newline-separated names and terms.
     static let dictionary = "dictionary"
 
@@ -14,6 +16,7 @@ enum Preferences {
         UserDefaults.standard.register(defaults: [
             polishEnabled: true,
             soundsEnabled: true,
+            trailingSpace: true,
         ])
     }
 
