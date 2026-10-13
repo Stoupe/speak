@@ -278,9 +278,11 @@ main > *,
   min-height: 3rem;
   padding: 0 1.5rem;
   border-radius: 999px;
-  background: var(--accent);
-  /* White on the light theme's dark accent. A plain colour plus a media query rather than light-dark(): if the
-     text colour ever fails to resolve it falls back to the page's dark ink, which is unreadable on the accent. */
+  /* Background and text are set as a pair, in the same media query, so they can never disagree: white on the
+     light theme's dark accent, dark ink on the dark theme's light accent. (The text colour used to come from a
+     light-dark() custom property, which gave dark text on the dark accent in one Chrome.) These two
+     backgrounds are --accent's two values; keep them in step. */
+  background: oklch(0.53 var(--chroma) var(--h));
   color: #fff;
   font-weight: 600;
   text-decoration: none;
@@ -292,6 +294,7 @@ main > *,
   }
 
   @media (prefers-color-scheme: dark) {
+    background: oklch(0.75 calc(var(--chroma) * 0.75) var(--h));
     color: oklch(0.2 0.05 var(--h));
   }
 }
