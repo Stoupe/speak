@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     let controller: DictationController
+    @Bindable var updater: Updater
 
     @AppStorage(Preferences.microphoneUID) private var microphoneUID = ""
     @AppStorage(Preferences.triggerKey) private var triggerKey = TriggerKey.fn
@@ -28,6 +29,9 @@ struct SettingsView: View {
                 Toggle("Sounds", isOn: $soundsEnabled)
                 Toggle("Launch at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in setLaunchAtLogin(enabled) }
+                if updater.isEnabled {
+                    Toggle("Check for updates automatically", isOn: $updater.automaticallyChecks)
+                }
             } footer: {
                 Text("Hold \(triggerKey.name) to dictate, or double-tap it for hands-free. Esc cancels.")
                     .foregroundStyle(.secondary)
@@ -55,8 +59,10 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
-        .frame(width: 440, height: 655)
+        // One row shorter in local builds, which have no update setting.
+        .frame(width: 440, height: updater.isEnabled ? 683 : 655)
         .onAppear {
+            updater.refresh()
             microphones = AudioDevices.inputDevices()
             controller.refreshPolisherAvailability()
         }

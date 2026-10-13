@@ -1,13 +1,15 @@
 #!/bin/zsh
 # Builds a shareable, notarized Speak.zip.
 #
-#   Tools/release.sh --dry-run [--version 0.3]
+#   Tools/release.sh --dry-run [--version 0.3] [--build 7] [--feed URL --update-key KEY]
 #       Archive + export signed with your local Apple Development certificate, then run the same checks
 #       notarization cares about. Nothing is sent to Apple and no certificates are created.
+#       --feed/--update-key turn on Sparkle updates in the build (Tools/update-test.sh uses this).
 #
 #   Tools/release.sh [--version 0.3] [--notary-profile speak-notary]
 #       The real thing: Developer ID signing (Xcode may create a cloud-managed Developer ID certificate on
-#       first use), notarization, stapling and the final zip. Asks before contacting Apple.
+#       first use), notarization, stapling, the final zip and the Sparkle appcast. Asks before contacting Apple.
+#       Nothing is uploaded: it prints the publishing steps at the end.
 #
 # One-time setup for real releases: store notarization credentials in your Keychain, e.g.
 #   xcrun notarytool store-credentials speak-notary --apple-id you@example.com --team-id V4TSTMTS4F
@@ -19,12 +21,23 @@ cd "$(dirname "$0")/.."
 TEAM_ID="V4TSTMTS4F"
 DRY_RUN=false
 VERSION=""
+BUILD=""
 NOTARY_PROFILE="speak-notary"
+
+# Sparkle updates. Real releases refuse to run until all three are set, and builds without them never check for
+# updates (see Speak/App/Updater.swift). Every release keeps its feed URL forever, so it must keep working: a
+# custom domain added to GitHub Pages later redirects from the github.io address.
+FEED_URL="https://stoupe.github.io/speak/appcast.xml"         # published from site/appcast.xml
+UPDATE_KEY="PFlseSBc4KrnvY+QuYNdbd5iJ2MMhkNQBJR2VPyM57I="     # public EdDSA key: generate_keys -p (private key: Keychain, backup in 1Password)
+DOWNLOADS_URL="https://github.com/Stoupe/speak/releases/download"  # the release tag is appended
 
 while (( $# )); do
     case "$1" in
         --dry-run) DRY_RUN=true ;;
         --version) VERSION="$2"; shift ;;
+        --build) BUILD="$2"; shift ;;
+        --feed) FEED_URL="$2"; shift ;;
+        --update-key) UPDATE_KEY="$2"; shift ;;
         --notary-profile) NOTARY_PROFILE="$2"; shift ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
@@ -40,7 +53,7 @@ if [[ -z "$VERSION" ]]; then
     VERSION=$(xcodebuild -project Speak.xcodeproj -target Speak -configuration Release -showBuildSettings 2>/dev/null \
         | awk -F' = ' '/ MARKETING_VERSION / { print $2; exit }')
 fi
-BUILD=$(git rev-list --count HEAD)
+[[ -n "$BUILD" ]] || BUILD=$(git rev-list --count HEAD)
 OUT="build/release/Speak-$VERSION-$BUILD"
 
 if [[ -n "$(git status --porcelain)" ]]; then
@@ -51,6 +64,8 @@ fi
 if $DRY_RUN; then
     print "Dry run: Speak $VERSION ($BUILD). Nothing will be sent to Apple."
 else
+    [[ -n "$FEED_URL" && -n "$UPDATE_KEY" && -n "$DOWNLOADS_URL" ]] \
+        || fail "Updates aren't set up: fill in FEED_URL, UPDATE_KEY and DOWNLOADS_URL at the top of this script."
     print "Release: Speak $VERSION ($BUILD)."
     print "This will contact Apple to sign with Developer ID (creating a certificate on first use) and to notarize."
     read -q "REPLY?Continue? [y/N] " || { print; exit 1; }
@@ -68,6 +83,7 @@ xcodebuild archive \
     -destination "generic/platform=macOS" \
     -archivePath "$OUT/Speak.xcarchive" \
     MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" \
+    SPEAK_FEED_URL="$FEED_URL" SPEAK_UPDATE_KEY="$UPDATE_KEY" \
     -quiet
 ok "Archived to $OUT/Speak.xcarchive"
 
@@ -114,6 +130,10 @@ ENTITLEMENTS=$(codesign -d --entitlements - --xml "$APP" 2>/dev/null)
 ok "Hardened Runtime on"
 [[ "$ENTITLEMENTS" == *"com.apple.security.device.audio-input"* ]] || fail "Missing the microphone entitlement"
 ok "Microphone entitlement present"
+INFO="$APP/Contents/Info.plist"
+[[ "$(plutil -extract SUFeedURL raw -o - "$INFO")" == "$FEED_URL" ]] || fail "SUFeedURL doesn't match FEED_URL"
+[[ "$(plutil -extract SUPublicEDKey raw -o - "$INFO")" == "$UPDATE_KEY" ]] || fail "SUPublicEDKey doesn't match UPDATE_KEY"
+if [[ -n "$FEED_URL" ]]; then ok "Updates on: $FEED_URL"; else print -P "%F{yellow}!%f Updates off (no feed URL)"; fi
 [[ "$SIGNATURE" == *"Timestamp="* ]] || print -P "%F{yellow}!%f No secure timestamp (expected for a dry run; Developer ID export adds one)"
 if $DRY_RUN; then
     [[ "$ENTITLEMENTS" == *"get-task-allow"* ]] && print -P "%F{yellow}!%f Debug entitlement present (expected for a dry run; Developer ID export removes it)"
@@ -154,3 +174,25 @@ step "Packaging"
 ZIP="$OUT/Speak-$VERSION.zip"
 ditto -c -k --keepParent "$APP" "$ZIP"
 ok "Ready to share: $ZIP"
+
+# Every release's zip is kept in build/updates so generate_appcast can build delta updates against them. It reuses
+# the appcast in that folder, adding the new version; site/appcast.xml is the published copy.
+step "Updating the appcast"
+UPDATES="build/updates"
+TAG="v$VERSION"
+mkdir -p "$UPDATES"
+cp "$ZIP" "$UPDATES/"
+[[ -f "$UPDATES/appcast.xml" ]] || [[ ! -f site/appcast.xml ]] || cp site/appcast.xml "$UPDATES/appcast.xml"
+SPARKLE_BIN="build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin"
+[[ -x "$SPARKLE_BIN/generate_appcast" ]] \
+    || xcodebuild -resolvePackageDependencies -project Speak.xcodeproj -scheme Speak -derivedDataPath build/DerivedData -quiet
+"$SPARKLE_BIN/generate_appcast" --download-url-prefix "$DOWNLOADS_URL/$TAG/" "$UPDATES" \
+    || fail "generate_appcast failed (it signs with the private key in your Keychain)"
+cp "$UPDATES/appcast.xml" site/appcast.xml
+ok "site/appcast.xml now lists $VERSION ($BUILD)"
+
+step "Publish (in this order)"
+print "  1. Create a GitHub release tagged $TAG and upload $UPDATES/Speak-$VERSION.zip"
+print "     and any new .delta files generate_appcast made there (the appcast points at them under the same tag)."
+print "  2. Check the download link works: $DOWNLOADS_URL/$TAG/Speak-$VERSION.zip"
+print "  3. Commit and push site/appcast.xml. Installed copies see the update once the site is live."

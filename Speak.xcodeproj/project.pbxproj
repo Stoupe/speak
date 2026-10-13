@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		5E0000000000000000000101 /* SpeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5E0000000000000000000201 /* SpeakCore */; };
 		5E0000000000000000000102 /* SpeakEngines in Frameworks */ = {isa = PBXBuildFile; productRef = 5E0000000000000000000202 /* SpeakEngines */; };
+		5E0000000000000000000103 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5E0000000000000000000203 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 			files = (
 				5E0000000000000000000101 /* SpeakCore in Frameworks */,
 				5E0000000000000000000102 /* SpeakEngines in Frameworks */,
+				5E0000000000000000000103 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,6 +82,7 @@
 			packageProductDependencies = (
 				5E0000000000000000000201 /* SpeakCore */,
 				5E0000000000000000000202 /* SpeakEngines */,
+				5E0000000000000000000203 /* Sparkle */,
 			);
 			productName = Speak;
 			productReference = 5E0000000000000000000301 /* Speak.app */;
@@ -111,6 +114,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5E0000000000000000000B01 /* XCLocalSwiftPackageReference "Packages/SpeakKit" */,
+				5E0000000000000000000B02 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5E0000000000000000000602 /* Products */;
@@ -197,6 +201,7 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Speak;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -211,6 +216,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SPEAK_FEED_URL = "";
+				SPEAK_UPDATE_KEY = "";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
@@ -228,6 +235,7 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Speak;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -242,6 +250,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SPEAK_FEED_URL = "";
+				SPEAK_UPDATE_KEY = "";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
@@ -276,6 +286,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		5E0000000000000000000B02 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		5E0000000000000000000201 /* SpeakCore */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -286,6 +307,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5E0000000000000000000B01 /* XCLocalSwiftPackageReference "Packages/SpeakKit" */;
 			productName = SpeakEngines;
+		};
+		5E0000000000000000000203 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E0000000000000000000B02 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

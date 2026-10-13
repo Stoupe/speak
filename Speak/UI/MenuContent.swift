@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuContent: View {
     let controller: DictationController
+    let updater: Updater
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
@@ -37,6 +38,10 @@ struct MenuContent: View {
         }
         .keyboardShortcut(",")
         Divider()
+        if updater.isEnabled {
+            Button("Check for Updates…") { updater.checkForUpdates() }
+                .disabled(!updater.canCheckForUpdates)
+        }
         Button("About Speak") {
             NSApp.activate()
             NSApp.orderFrontStandardAboutPanel(options: [

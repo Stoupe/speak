@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Sparkle. Empty unless Tools/release.sh passes them in, which keeps updates off in local builds (see Updater.swift). -->
+	<key>SUFeedURL</key>
+	<string>$(SPEAK_FEED_URL)</string>
+	<key>SUPublicEDKey</key>
+	<string>$(SPEAK_UPDATE_KEY)</string>
+</dict>
+</plist>
