@@ -50,6 +50,10 @@
   100% { --hue: 355; --chroma: 0.19; }
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 *,
 *::before,
 *::after {
@@ -1045,6 +1049,10 @@ main > *,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {
