@@ -55,7 +55,7 @@ final class PillPanel: NSPanel, NSWindowDelegate {
             orderFrontRegardless()
         }
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.15
+            context.duration = 0.08
             animator().alphaValue = 1
         }
     }

@@ -18,6 +18,8 @@ final class PillModel {
     var isVisible = false
     var phase: Phase = .listening
     var handsFree = false
+    /// False from key-down until the first audio arrives; the waveform stays red until it's safe to talk.
+    var micLive = false
     /// The text card above the pill. It opens with the first words and closes back into the pill as the
     /// text is pasted.
     var showsCard = false

@@ -57,7 +57,7 @@ struct PillView: View {
         HStack(spacing: 8) {
             switch model.phase {
             case .listening:
-                Waveform(levels: model.levels)
+                Waveform(levels: model.levels, live: model.micLive)
                 if model.handsFree {
                     Button(action: model.onCancel) {
                         Image(systemName: "xmark")
@@ -157,6 +157,8 @@ private struct LiveText: View {
 
 private struct Waveform: View {
     let levels: [Float]
+    /// Faintly red-tinted until the mic is capturing.
+    let live: Bool
 
     var body: some View {
         HStack(alignment: .center, spacing: 2) {
@@ -165,8 +167,9 @@ private struct Waveform: View {
                     .frame(width: 2.5, height: 4 + CGFloat(levels[index]) * 16)
             }
         }
-        .foregroundStyle(.primary.opacity(0.85))
+        .foregroundStyle(live ? Color.primary.opacity(0.85) : Color.primary.mix(with: .red, by: 0.35).opacity(0.6))
         .animation(.easeOut(duration: 0.08), value: levels)
+        .animation(.easeOut(duration: 0.3), value: live)
         .frame(height: 20)
     }
 }

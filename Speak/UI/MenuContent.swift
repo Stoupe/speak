@@ -3,7 +3,6 @@ import SwiftUI
 
 struct MenuContent: View {
     let controller: DictationController
-    @AppStorage(Preferences.polishEnabled) private var polishEnabled = true
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
@@ -11,23 +10,22 @@ struct MenuContent: View {
 
         if !controller.history.items.isEmpty {
             Divider()
-            Section("Recent — click to copy, ⌥ for original") {
+            // Click copies; holding ⌥ swaps in the unpolished original.
+            Section("Recent") {
                 ForEach(controller.history.items.prefix(5)) { item in
-                    Button(preview(item.text)) { controller.copy(item.text) }
-                        .modifierKeyAlternate(.option) {
-                            Button(preview(item.raw)) { controller.copy(item.raw) }
+                    Button { controller.copy(item.text) } label: {
+                        Label(preview(item.text), systemImage: "doc.on.doc")
+                    }
+                    .modifierKeyAlternate(.option) {
+                        Button { controller.copy(item.raw) } label: {
+                            Label(preview(item.raw), systemImage: "doc.on.doc")
                         }
+                    }
                 }
             }
-            Button("Paste Last Dictation") { controller.pasteLast() }
-                .keyboardShortcut("v", modifiers: [.command, .option])
         }
 
         Divider()
-        Toggle("Polish Text", isOn: $polishEnabled)
-        if polishEnabled, case .unavailable(let reason) = controller.polisherAvailability {
-            Text(reason)
-        }
         Button("Settings…") {
             openSettings()
             // A menu bar app isn't active, so the window would open behind the frontmost app.

@@ -102,6 +102,7 @@ final class DictationController {
 
     func launch() {
         recorder.warmUp()
+        _ = panel // Build the pill's window now so the first key press doesn't pay for it.
         refreshPermissions()
         startHotkeys()
         Task {
@@ -173,7 +174,10 @@ final class DictationController {
             startRecording()
         case .enterHandsFree:
             pill.handsFree = true
+            updatePill()
         case .scheduleTapWindow(let id, let seconds):
+            // The pill hides until we know whether this short tap is the start of a double-tap.
+            updatePill()
             Task {
                 try? await Task.sleep(for: .seconds(seconds))
                 handle(.tapWindowElapsed(id: id))
@@ -186,6 +190,7 @@ final class DictationController {
     }
 
     private func startRecording() {
+        let keyDown = ContinuousClock.now
         // Permission may have been granted in System Settings since launch.
         refreshPermissions()
         guard status == .ready else {
@@ -196,7 +201,6 @@ final class DictationController {
         }
 
         let session: any TranscriptionSession
-        let recorderID: Int
         do {
             session = try transcriber.begin(vocabulary: Preferences.dictionaryWords)
         } catch {
@@ -204,20 +208,14 @@ final class DictationController {
             showNotice("Speech model isn't ready")
             return
         }
-        let micStart = ContinuousClock.now
-        defer { log.info("mic start took \(ContinuousClock.now - micStart, privacy: .public)") }
-        do {
-            let pill = pill
-            recorderID = try recorder.start(
-                deviceUID: UserDefaults.standard.string(forKey: Preferences.microphoneUID),
-                sink: session,
-                onLevels: { levels in Task { @MainActor in pill.push(levels) } })
-        } catch {
-            Task { await session.cancel() }
-            machine.reset()
-            showNotice("Couldn't start microphone")
-            return
-        }
+        let pill = pill
+        let recorderID = recorder.start(
+            deviceUID: UserDefaults.standard.string(forKey: Preferences.microphoneUID),
+            sink: session,
+            onLevels: { levels in Task { @MainActor in pill.push(levels) } },
+            onEvent: { [weak self] id, event in
+                Task { @MainActor in self?.micEvent(event, recorderID: id, keyDown: keyDown) }
+            })
 
         let app = NSWorkspace.shared.frontmostApplication
         let context = PolishContext(
@@ -258,15 +256,27 @@ final class DictationController {
         isRecording = true
         pill.resetLevels()
         pill.handsFree = false
-        // Show the pill and play the sound only once it's clearly a dictation, not a quick tap or a
-        // modifier shortcut (e.g. right ⌘C when right ⌘ is the trigger) that cancels straight away.
-        Task {
-            try? await Task.sleep(for: .milliseconds(150))
-            guard current?.recorderID == recorderID else { return }
-            updatePill()
-            playSound("Tink")
-        }
+        pill.micLive = false
+        // On screen straight away, red until the mic is live (see `micEvent`).
+        updatePill()
         if polishEnabled { polisher.prewarm(context: context) }
+    }
+
+    /// The mic is capturing (or couldn't start). Only now does the waveform light up and Tink say "go ahead".
+    private func micEvent(_ event: AudioRecorder.Event, recorderID: Int, keyDown: ContinuousClock.Instant) {
+        guard current?.recorderID == recorderID else { return }
+        switch event {
+        case .live:
+            log.info("mic live \(ContinuousClock.now - keyDown, privacy: .public) after key down")
+            pill.micLive = true
+            playSound("Tink")
+        case .failed(let error):
+            log.error("mic failed: \(String(describing: error), privacy: .public)")
+            cancelRecording()
+            machine.reset()
+            hotkeys.swallowsEscape = false
+            showNotice("Couldn't start microphone")
+        }
     }
 
     private func cancelRecording() {
@@ -403,11 +413,6 @@ final class DictationController {
         inserter.copy(text)
     }
 
-    func pasteLast() {
-        guard let last = history.items.first else { return }
-        Task { await inserter.insert(withTrailingSpace(last.text)) }
-    }
-
     func clearHistory() {
         history.clear()
     }
@@ -417,7 +422,7 @@ final class DictationController {
     /// Single source of truth for what the pill shows: recording beats processing beats a notice.
     private func updatePill() {
         defer { log.debug("pill visible=\(self.pill.isVisible) phase=\(String(describing: self.pill.phase), privacy: .public) frame=\(NSStringFromRect(self.panel.frame), privacy: .public)") }
-        if isRecording {
+        if isRecording, !isAwaitingSecondTap {
             pill.phase = .listening
         } else if finishingCount > 0 {
             pill.phase = .processing
@@ -438,6 +443,10 @@ final class DictationController {
         }
         pill.isVisible = true
         panel.show()
+    }
+
+    private var isAwaitingSecondTap: Bool {
+        if case .awaitingSecondTap = machine.state { true } else { false }
     }
 
     private func showNotice(_ message: String) {

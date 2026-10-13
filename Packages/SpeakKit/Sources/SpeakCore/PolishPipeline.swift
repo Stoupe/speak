@@ -26,10 +26,12 @@ public struct PolishPipeline: Sendable {
     /// …up to this ceiling.
     public var maxTimeout: Duration
 
+    /// The defaults leave room for a slow call on an 8 GB M1 (1–4 s for a couple of sentences): a timeout means
+    /// waiting the full limit and then getting raw text, the worst of both.
     public init(
         polisher: (any TextPolisher)?,
-        timeout: Duration = .seconds(2),
-        timeoutPerCharacter: Duration = .milliseconds(10),
+        timeout: Duration = .seconds(3),
+        timeoutPerCharacter: Duration = .milliseconds(15),
         maxTimeout: Duration = .seconds(8)
     ) {
         self.polisher = polisher
