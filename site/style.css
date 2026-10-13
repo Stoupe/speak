@@ -19,7 +19,7 @@
 :root {
   color-scheme: light dark;
   /* Starts on the app icon's indigo, a little way into the sweep. */
-  animation: drift 60s -36s linear infinite alternate;
+  animation: drift 150s -90s linear infinite alternate;
 
   --h: var(--hue);
   --paper: light-dark(oklch(0.975 0.012 var(--h)), oklch(0.17 0.035 var(--h)));
