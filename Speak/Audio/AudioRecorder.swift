@@ -51,9 +51,11 @@ final class AudioRecorder {
         return id
     }
 
-    /// Touches the audio input once at launch so the first real recording doesn't pay Core Audio's cold start.
-    /// Doesn't start the engine, so the mic indicator stays off.
+    /// Touches the audio input once so the first real recording doesn't pay Core Audio's cold start.
+    /// Doesn't start the engine, so the mic indicator stays off. Skipped until microphone access is granted:
+    /// touching the input before then makes macOS ask, ahead of the setup window's explanation.
     func warmUp() {
+        guard AVAudioApplication.shared.recordPermission == .granted else { return }
         queue.async {
             let engine = AVAudioEngine()
             withExtendedLifetime(engine) { _ = engine.inputNode.outputFormat(forBus: 0) }

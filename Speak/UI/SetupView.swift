@@ -33,6 +33,8 @@ final class SetupStatus {
 struct SetupView: View {
     let controller: DictationController
     let status: SetupStatus
+    /// System permission prompts make the previous app active again when dismissed, hiding this window.
+    let bringToFront: () -> Void
     let onDone: () -> Void
 
     var body: some View {
@@ -66,7 +68,7 @@ struct SetupView: View {
                 SetupRow(
                     symbol: "accessibility",
                     title: "Accessibility",
-                    detail: "To notice when you press \(key), and to type into other apps.",
+                    detail: "To notice when you press \(key), and to paste into your current app.",
                     done: status.accessibility,
                     actionTitle: "Open Settings",
                     action: requestAccessibility)
@@ -114,6 +116,10 @@ struct SetupView: View {
                 try? await Task.sleep(for: .seconds(1))
             }
         }
+        // Accessibility is switched on in System Settings, which stays in front: come back once it's done.
+        .onChange(of: status.accessibility) { _, granted in
+            if granted { bringToFront() }
+        }
     }
 
     /// Why Apple Intelligence isn't ready, if it isn't.
@@ -128,6 +134,7 @@ struct SetupView: View {
                 _ = await AVAudioApplication.requestRecordPermission()
                 status.refresh()
                 controller.refreshPermissions()
+                bringToFront()
             }
         } else {
             open("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
@@ -219,7 +226,10 @@ final class SetupWindowController {
             return
         }
         let status = SetupStatus()
-        let view = SetupView(controller: controller, status: status) { [weak self] in
+        let view = SetupView(controller: controller, status: status, bringToFront: { [weak self] in
+            guard let self, let window else { return }
+            bringToFront(window)
+        }) { [weak self] in
             UserDefaults.standard.set(true, forKey: Preferences.setupCompleted)
             controller.refreshPermissions()
             self?.window?.close()

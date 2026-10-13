@@ -134,7 +134,9 @@ final class DictationController {
     }
 
     func refreshPermissions() {
+        let hadMicrophone = hasMicrophone
         hasMicrophone = AVAudioApplication.shared.recordPermission == .granted
+        if hasMicrophone && !hadMicrophone { recorder.warmUp() }
         hasAccessibility = AXIsProcessTrusted() && hotkeys.isRunning
     }
 
