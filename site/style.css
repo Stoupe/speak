@@ -28,6 +28,8 @@
   --rule: light-dark(oklch(0.91 0.02 var(--h)), oklch(0.29 0.04 var(--h)));
   --surface: light-dark(oklch(0.995 0.004 var(--h)), oklch(0.215 0.04 var(--h)));
   --accent: light-dark(oklch(0.53 var(--chroma) var(--h)), oklch(0.75 calc(var(--chroma) * 0.75) var(--h)));
+  /* Text on --accent: white on the light theme's dark accent, dark ink on the dark theme's light one. */
+  --on-accent: light-dark(oklch(1 0 0), oklch(0.2 0.05 var(--h)));
   --shadow: oklch(0.3 0.15 var(--h) / 0.35);
 
   /* SF on Apple devices (Inter is never downloaded there), Inter everywhere else. */
@@ -278,12 +280,8 @@ main > *,
   min-height: 3rem;
   padding: 0 1.5rem;
   border-radius: 999px;
-  /* Background and text are set as a pair, in the same media query, so they can never disagree: white on the
-     light theme's dark accent, dark ink on the dark theme's light accent. (The text colour used to come from a
-     light-dark() custom property, which gave dark text on the dark accent in one Chrome.) These two
-     backgrounds are --accent's two values; keep them in step. */
-  background: oklch(0.53 var(--chroma) var(--h));
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
   font-weight: 600;
   text-decoration: none;
   /* Not background-color: the theme changes it constantly, and a transition would make it lag. */
@@ -291,11 +289,6 @@ main > *,
 
   &:hover {
     filter: brightness(1.1) saturate(1.1);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    background: oklch(0.75 calc(var(--chroma) * 0.75) var(--h));
-    color: oklch(0.2 0.05 var(--h));
   }
 }
 
