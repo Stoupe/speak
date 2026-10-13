@@ -1,152 +1,204 @@
-// Generates Speak's app icon and menu bar glyphs.
+// Generates Speak's app icon, menu bar glyphs and website favicon.
 //
 //   swift Tools/make-icons.swift [repo-root] [preview-dir]
 //
-// Writes into Speak/Assets.xcassets (AppIcon, MenuBarIcon, MenuBarIconRecording),
-// the Icon Composer bundle Tools/AppIcon.icon, and preview PNGs (default /tmp/speak-icon).
+// The mark: a waveform whose tallest line is a text cursor. Grey voice bars on a white page, the cursor in
+// macOS's text-cursor blue.
+//
+// Writes the Icon Composer bundle Speak/AppIcon.icon (the real app icon: layered Liquid Glass),
+// renders it with Xcode's `ictool` into Speak/Assets.xcassets/AppIcon.appiconset (fallback PNGs),
+// draws MenuBarIcon / MenuBarIconRecording, writes site/icon.svg, and puts previews in /tmp/speak-icon.
 
 import AppKit
 import CoreGraphics
-import SwiftUI
 import UniformTypeIdentifiers
 
 let args = CommandLine.arguments
 let root = URL(fileURLWithPath: args.count > 1 ? args[1] : FileManager.default.currentDirectoryPath)
 let previewDir = URL(fileURLWithPath: args.count > 2 ? args[2] : "/tmp/speak-icon")
 let catalog = root.appendingPathComponent("Speak/Assets.xcassets")
+let iconBundle = root.appendingPathComponent("Speak/AppIcon.icon")
+let ictool = "/Applications/Xcode.app/Contents/Applications/Icon Composer.app/Contents/Executables/ictool"
 let fm = FileManager.default
 
-// MARK: - Design
+// MARK: - Design (1024 canvas, y down, as in SVG)
 
-/// Waveform shared by the app icon and the menu bar glyph: relative bar heights, left to right.
-let waveform: [CGFloat] = [0.40, 0.70, 1.00, 0.58, 0.32]
-/// Fewer, chunkier bars for the 16 and 32 px renditions so they don't turn to mush.
-let smallWaveform: [CGFloat] = [0.56, 1.00, 0.50]
+let canvas: CGFloat = 1024
+/// The whole mark is drawn at this scale about the centre, leaving room for the glass edge.
+let markScale: CGFloat = 0.92
+
+struct Bar { var height: CGFloat; var top: String; var bottom: String }
+/// Waveform slots, left to right; `nil` is the cursor. Bars darken towards it and the right side tails off sooner.
+let slots: [Bar?] = [
+    Bar(height: 170, top: "#C9CCD6", bottom: "#B4B8C6"),
+    Bar(height: 300, top: "#A9AEBE", bottom: "#9298AC"),
+    Bar(height: 430, top: "#8A90A6", bottom: "#747B94"),
+    nil,
+    Bar(height: 400, top: "#8A90A6", bottom: "#747B94"),
+    Bar(height: 260, top: "#A9AEBE", bottom: "#9298AC"),
+    Bar(height: 150, top: "#C9CCD6", bottom: "#B4B8C6"),
+]
+/// Bars and the cursor stem share a width, so the cursor reads as one line of the waveform.
+let barWidth: CGFloat = 56, barGap: CGFloat = 50
+
+func slotX(_ i: Int) -> CGFloat {
+    let n = CGFloat(slots.count)
+    return canvas / 2 - (n * barWidth + (n - 1) * barGap) / 2 + CGFloat(i) * (barWidth + barGap)
+}
+
+/// Text cursor (I-beam), the tallest line.
+struct Caret { var stemX: CGFloat, stemWidth: CGFloat, top: CGFloat, bottom: CGFloat, serifWidth: CGFloat, serifHeight: CGFloat, fillet: CGFloat }
+let caretSlot = slots.firstIndex { $0 == nil }!
+let caret = Caret(stemX: slotX(caretSlot), stemWidth: barWidth, top: 212, bottom: 812, serifWidth: 176, serifHeight: 50, fillet: 22)
+let caretTop = "#3C8BFF", caretBottom = "#0A66F0"
+
+func barRect(_ i: Int) -> CGRect {
+    let h = slots[i]!.height
+    return CGRect(x: slotX(i), y: canvas / 2 - h / 2, width: barWidth, height: h)
+}
+
+/// One closed outline: round-ended serifs joined to the stem with small fillets.
+/// The shape is symmetric top to bottom, so it works in y-up and y-down space alike.
+func caretPath(_ c: Caret) -> CGPath {
+    let p = CGMutablePath()
+    let cx = c.stemX + c.stemWidth / 2
+    let l = cx - c.serifWidth / 2, r = cx + c.serifWidth / 2
+    let sl = c.stemX, sr = c.stemX + c.stemWidth
+    let t = c.top, b = c.bottom, h = c.serifHeight, rad = h / 2
+    p.move(to: CGPoint(x: l + rad, y: t))
+    p.addArc(center: CGPoint(x: r - rad, y: t + rad), radius: rad, startAngle: -.pi / 2, endAngle: .pi / 2, clockwise: false)
+    if c.fillet > 0 {
+        p.addArc(tangent1End: CGPoint(x: sr, y: t + h), tangent2End: CGPoint(x: sr, y: b), radius: c.fillet)
+        p.addArc(tangent1End: CGPoint(x: sr, y: b - h), tangent2End: CGPoint(x: r, y: b - h), radius: c.fillet)
+    } else {
+        p.addLine(to: CGPoint(x: sr, y: t + h)); p.addLine(to: CGPoint(x: sr, y: b - h))
+    }
+    p.addArc(center: CGPoint(x: r - rad, y: b - rad), radius: rad, startAngle: -.pi / 2, endAngle: .pi / 2, clockwise: false)
+    p.addArc(center: CGPoint(x: l + rad, y: b - rad), radius: rad, startAngle: .pi / 2, endAngle: 3 * .pi / 2, clockwise: false)
+    if c.fillet > 0 {
+        p.addArc(tangent1End: CGPoint(x: sl, y: b - h), tangent2End: CGPoint(x: sl, y: t), radius: c.fillet)
+        p.addArc(tangent1End: CGPoint(x: sl, y: t + h), tangent2End: CGPoint(x: l, y: t + h), radius: c.fillet)
+    } else {
+        p.addLine(to: CGPoint(x: sl, y: b - h)); p.addLine(to: CGPoint(x: sl, y: t + h))
+    }
+    p.addArc(center: CGPoint(x: l + rad, y: t + rad), radius: rad, startAngle: .pi / 2, endAngle: 3 * .pi / 2, clockwise: false)
+    p.closeSubpath()
+    return p
+}
+
+/// Background: a white page with a faint cool shade at the bottom.
+let bgTop = "display-p3:1.00000,1.00000,1.00000,1.00000"
+let bgBottom = "display-p3:0.89000,0.90000,0.93000,1.00000"
+let bgTopHex = "#FFFFFF", bgBottomHex = "#E2E4EB"
+
+// MARK: - SVG helpers
+
+func svgPathData(_ path: CGPath) -> String {
+    var d = ""
+    func f(_ p: CGPoint) -> String { String(format: "%.2f %.2f", p.x, p.y) }
+    path.applyWithBlock { e in
+        let pts = e.pointee.points
+        switch e.pointee.type {
+        case .moveToPoint: d += "M\(f(pts[0]))"
+        case .addLineToPoint: d += "L\(f(pts[0]))"
+        case .addQuadCurveToPoint: d += "Q\(f(pts[0])) \(f(pts[1]))"
+        case .addCurveToPoint: d += "C\(f(pts[0])) \(f(pts[1])) \(f(pts[2]))"
+        case .closeSubpath: d += "Z"
+        @unknown default: break
+        }
+    }
+    return d
+}
+
+func vGradient(_ id: String, _ top: String, _ bottom: String) -> String {
+    "<linearGradient id=\"\(id)\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"\(top)\"/><stop offset=\"1\" stop-color=\"\(bottom)\"/></linearGradient>"
+}
+
+func scaled(_ body: String) -> String {
+    "<g transform=\"translate(512 512) scale(\(markScale)) translate(-512 -512)\">\(body)</g>"
+}
+
+func svgDocument(defs: String, body: String) -> String {
+    """
+    <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+      <defs>\(defs)</defs>
+      \(body)
+    </svg>
+
+    """
+}
+
+func barSVG(_ i: Int, fill: String) -> String {
+    let r = barRect(i)
+    return String(format: "<rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%.1f\" rx=\"%.1f\" fill=\"%@\"/>",
+                  r.minX, r.minY, r.width, r.height, r.width / 2, fill)
+}
+
+let caretD = svgPathData(caretPath(caret))
+let caretGradient = vGradient("caret", caretTop, caretBottom)
+
+// MARK: - Icon Composer bundle
+//
+// Groups, front to back: the cursor, then the voice bars, one glass layer each so each catches its own highlight.
+// Dark mode keeps the system's dark page; only the cursor needs a brighter blue there.
+
+try? fm.removeItem(at: iconBundle)
+let assets = iconBundle.appendingPathComponent("Assets")
+try! fm.createDirectory(at: assets, withIntermediateDirectories: true)
+func writeAsset(_ name: String, _ svg: String) {
+    try! svg.write(to: assets.appendingPathComponent(name), atomically: true, encoding: .utf8)
+}
+
+writeAsset("Caret.svg", svgDocument(defs: caretGradient, body: scaled("<path d=\"\(caretD)\" fill=\"url(#caret)\"/>")))
+let barSlots = slots.indices.filter { slots[$0] != nil }
+for (n, i) in barSlots.enumerated() {
+    writeAsset("Bar\(n + 1).svg", svgDocument(defs: vGradient("bar", slots[i]!.top, slots[i]!.bottom), body: scaled(barSVG(i, fill: "url(#bar)"))))
+}
+
+/// Dark mode recolours layers on its own unless they say otherwise.
+func darkFill(_ p3: String) -> [String: Any] {
+    ["fill-specializations": [["appearance": "dark", "value": ["solid": p3]]]]
+}
+func layer(_ name: String, glass: Bool = true, extra: [String: Any] = [:]) -> [String: Any] {
+    ["image-name": "\(name).svg", "name": name, "glass": glass].merging(extra) { $1 }
+}
+
+let iconJSON: [String: Any] = [
+    "fill": ["linear-gradient": [bgTop, bgBottom]],
+    "groups": [
+        [
+            "name": "Cursor",
+            "layers": [layer("Caret", extra: darkFill("display-p3:0.30000,0.60000,1.00000,1.00000"))],
+            "lighting": "individual", "specular": true,
+            "shadow": ["kind": "neutral", "opacity": 0.5],
+            "translucency": ["enabled": true, "value": 0.1],
+        ],
+        [
+            "name": "Voice",
+            "layers": barSlots.indices.map { layer("Bar\($0 + 1)") },
+            "lighting": "individual", "specular": true,
+            "shadow": ["kind": "neutral", "opacity": 0.35],
+            "translucency": ["enabled": true, "value": 0.25],
+        ],
+    ],
+    "supported-platforms": ["squares": ["macOS"]],
+]
+
+func writeJSON(_ object: Any, to url: URL) {
+    let data = try! JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+    try! data.write(to: url)
+}
+writeJSON(iconJSON, to: iconBundle.appendingPathComponent("icon.json"))
+
+// MARK: - Rendering helpers
 
 let p3 = CGColorSpace(name: CGColorSpace.displayP3)!
 let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
-func color(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> CGColor {
-    CGColor(colorSpace: p3, components: [r, g, b, a])!
-}
-
-// Background: luminous violet-blue at the top settling into deep indigo.
-let bgTop = color(0.47, 0.42, 1.00)
-let bgBottom = color(0.20, 0.13, 0.66)
-
-func squircle(_ rect: CGRect, radius: CGFloat) -> CGPath {
-    RoundedRectangle(cornerRadius: radius, style: .continuous).path(in: rect).cgPath
-}
-
-func capsule(_ rect: CGRect) -> CGPath {
-    let r = min(rect.width, rect.height) / 2
-    return CGPath(roundedRect: rect, cornerWidth: r, cornerHeight: r, transform: nil)
-}
-
-/// Bars centred in `rect`. `width` and `gap` are fractions of rect width; heights are fractions of rect height.
-func barRects(in rect: CGRect, heights: [CGFloat], width: CGFloat, gap: CGFloat) -> [CGRect] {
-    let n = CGFloat(heights.count)
-    let bw = rect.width * width, g = rect.width * gap
-    let total = n * bw + (n - 1) * g
-    var x = rect.midX - total / 2
-    return heights.map { h in
-        let bh = max(bw, rect.height * h)
-        defer { x += bw + g }
-        return CGRect(x: x, y: rect.midY - bh / 2, width: bw, height: bh)
-    }
-}
-
-// macOS 26 icon grid on a 1024 canvas: 824 pt body inset 100 pt, continuous corner radius ~185.4.
-let canvas: CGFloat = 1024
-let body = CGRect(x: 100, y: 100, width: 824, height: 824)
-let bodyRadius: CGFloat = 185.4
-
-/// Bar layout inside the icon body (in 1024 canvas units).
-func iconBars(small: Bool) -> [CGRect] {
-    let area = CGRect(x: body.minX + 150, y: body.minY + 190, width: body.width - 300, height: body.height - 380)
-    return small
-        ? barRects(in: area.insetBy(dx: -40, dy: -30), heights: smallWaveform, width: 0.22, gap: 0.17)
-        : barRects(in: area, heights: waveform, width: 0.118, gap: 0.098)
-}
-
-func drawAppIcon(_ ctx: CGContext, size: CGFloat, small: Bool, shadow: Bool = true) {
-    ctx.saveGState()
-    ctx.scaleBy(x: size / canvas, y: size / canvas)
-    let shape = squircle(body, radius: bodyRadius)
-
-    // Drop shadow, as in Apple's macOS template.
-    if shadow {
-        ctx.saveGState()
-        ctx.setShadow(offset: CGSize(width: 0, height: -10), blur: 24, color: color(0, 0, 0, 0.28))
-        ctx.addPath(shape); ctx.setFillColor(bgBottom); ctx.fillPath()
-        ctx.restoreGState()
-    }
-
-    ctx.saveGState()
-    ctx.addPath(shape); ctx.clip()
-    let grad = CGGradient(colorsSpace: p3, colors: [bgTop, bgBottom] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(grad, start: CGPoint(x: 0, y: body.maxY), end: CGPoint(x: 0, y: body.minY), options: [])
-    // Soft glow behind the bars.
-    let glow = CGGradient(colorsSpace: p3, colors: [color(0.70, 0.66, 1.0, 0.45), color(0.70, 0.66, 1.0, 0)] as CFArray, locations: [0, 1])!
-    ctx.drawRadialGradient(glow, startCenter: CGPoint(x: 512, y: 560), startRadius: 0,
-                           endCenter: CGPoint(x: 512, y: 560), endRadius: 420, options: [])
-    // Gentle sheen across the top edge.
-    let sheen = CGGradient(colorsSpace: p3, colors: [color(1, 1, 1, 0.16), color(1, 1, 1, 0)] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(sheen, start: CGPoint(x: 0, y: body.maxY), end: CGPoint(x: 0, y: body.midY + 80), options: [])
-    ctx.restoreGState()
-
-    // Bars: white with a whisper of lavender at the bottom and a soft indigo shadow.
-    let bars = iconBars(small: small)
-    ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -8), blur: 22, color: color(0.10, 0.04, 0.40, 0.35))
-    ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-    for r in bars { ctx.addPath(capsule(r)) }
-    ctx.clip()
-    let barGrad = CGGradient(colorsSpace: p3, colors: [color(1, 1, 1), color(0.88, 0.86, 1.0)] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(barGrad, start: CGPoint(x: 0, y: 780), end: CGPoint(x: 0, y: 240), options: [])
-    ctx.endTransparencyLayer()
-    ctx.restoreGState()
-
-    // Hairline inner edge for definition on light backgrounds.
-    if size >= 128 {
-        ctx.saveGState()
-        ctx.addPath(shape); ctx.clip()
-        ctx.addPath(shape); ctx.setStrokeColor(color(1, 1, 1, 0.18)); ctx.setLineWidth(4); ctx.strokePath()
-        ctx.restoreGState()
-    }
-    ctx.restoreGState()
-}
-
-// MARK: - Menu bar glyphs (18 x 18 pt, pixel-aligned at 1x)
-
-let glyphSize = CGSize(width: 18, height: 18)
-/// Idle: five 2 pt capsules, 2 pt apart, filling the 18 pt width.
-let idleHeights: [CGFloat] = [6, 12, 16, 10, 6]
-/// Recording: filled squircle with the waveform knocked out.
-let recHeights: [CGFloat] = [4, 8, 12, 8, 4]
-
-func drawGlyph(_ ctx: CGContext, recording: Bool) {
-    ctx.setFillColor(CGColor(gray: 0, alpha: 1))
-    if !recording {
-        for (i, h) in idleHeights.enumerated() {
-            ctx.addPath(capsule(CGRect(x: CGFloat(i) * 4, y: 9 - h / 2, width: 2, height: h)))
-        }
-        ctx.fillPath()
-    } else {
-        ctx.addPath(squircle(CGRect(origin: .zero, size: glyphSize), radius: 5))
-        for (i, h) in recHeights.enumerated() {
-            ctx.addPath(capsule(CGRect(x: 2 + CGFloat(i) * 3, y: 9 - h / 2, width: 2, height: h)))
-        }
-        ctx.fillPath(using: .evenOdd)
-    }
-}
-
-// MARK: - Output helpers
 
 func bitmap(_ w: Int, _ h: Int, space: CGColorSpace = srgb) -> CGContext {
     let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0, space: space,
                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
     ctx.interpolationQuality = .high
-    ctx.setShouldAntialias(true)
     return ctx
 }
 
@@ -156,24 +208,81 @@ func writePNG(_ image: CGImage, to url: URL) {
     precondition(CGImageDestinationFinalize(dest), "failed to write \(url.path)")
 }
 
-func writeJSON(_ object: Any, to url: URL) {
-    let data = try! JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
-    try! data.write(to: url)
+func loadPNG(_ url: URL) -> CGImage {
+    let src = CGImageSourceCreateWithURL(url as CFURL, nil)!
+    return CGImageSourceCreateImageAtIndex(src, 0, nil)!
 }
 
-func mkdir(_ url: URL) { try! fm.createDirectory(at: url, withIntermediateDirectories: true) }
-
-func renderAppIcon(px: Int) -> CGImage {
-    let ctx = bitmap(px, px, space: p3)
-    drawAppIcon(ctx, size: CGFloat(px), small: px <= 32)
-    return ctx.makeImage()!
+/// Renders the Icon Composer bundle with Xcode's own renderer.
+func renderIcon(px: Int, rendition: String = "Default", to url: URL) {
+    let task = Process()
+    task.executableURL = URL(fileURLWithPath: ictool)
+    task.arguments = [iconBundle.path, "--export-image", "--output-file", url.path, "--platform", "macOS",
+                      "--rendition", rendition, "--width", "\(px)", "--height", "\(px)", "--scale", "1"]
+    task.standardOutput = FileHandle.nullDevice
+    task.standardError = FileHandle.nullDevice
+    try! task.run()
+    task.waitUntilExit()
+    precondition(task.terminationStatus == 0, "ictool failed for \(rendition) \(px)px")
 }
 
-func renderGlyph(recording: Bool, scale: Int) -> CGImage {
-    let ctx = bitmap(18 * scale, 18 * scale)
-    ctx.scaleBy(x: CGFloat(scale), y: CGFloat(scale))
-    drawGlyph(ctx, recording: recording)
-    return ctx.makeImage()!
+try! fm.createDirectory(at: previewDir, withIntermediateDirectories: true)
+let scratch = fm.temporaryDirectory.appendingPathComponent("speak-icon-\(getpid())")
+try! fm.createDirectory(at: scratch, withIntermediateDirectories: true)
+defer { try? fm.removeItem(at: scratch) }
+
+// MARK: - Asset catalog: fallback PNGs on Apple's macOS grid (824 pt body inset 100 pt, soft shadow)
+
+let info = ["author": "xcode", "version": 1] as [String: Any]
+let appIconSet = catalog.appendingPathComponent("AppIcon.appiconset")
+try? fm.removeItem(at: appIconSet)
+try! fm.createDirectory(at: appIconSet, withIntermediateDirectories: true)
+var images: [[String: String]] = []
+for pt in [16, 32, 128, 256, 512] {
+    for scale in [1, 2] {
+        let px = pt * scale
+        let bodyPx = Int((CGFloat(px) * 824 / canvas).rounded())
+        let raw = scratch.appendingPathComponent("raw-\(px).png")
+        renderIcon(px: bodyPx, to: raw)
+        let ctx = bitmap(px, px, space: p3)
+        let inset = (CGFloat(px) - CGFloat(bodyPx)) / 2
+        ctx.setShadow(offset: CGSize(width: 0, height: -CGFloat(px) * 10 / canvas), blur: CGFloat(px) * 24 / canvas,
+                      color: CGColor(gray: 0, alpha: 0.28))
+        ctx.draw(loadPNG(raw), in: CGRect(x: inset, y: inset, width: CGFloat(bodyPx), height: CGFloat(bodyPx)))
+        let name = "icon_\(pt)x\(pt)\(scale == 2 ? "@2x" : "").png"
+        writePNG(ctx.makeImage()!, to: appIconSet.appendingPathComponent(name))
+        images.append(["filename": name, "idiom": "mac", "scale": "\(scale)x", "size": "\(pt)x\(pt)"])
+    }
+}
+writeJSON(["images": images, "info": info], to: appIconSet.appendingPathComponent("Contents.json"))
+
+// MARK: - Menu bar glyphs (18 x 18 pt template, pixel-aligned at 1x, y up)
+
+let glyphSize = CGSize(width: 18, height: 18)
+
+func capsule(_ rect: CGRect) -> CGPath {
+    let r = min(rect.width, rect.height) / 2
+    return CGPath(roundedRect: rect, cornerWidth: r, cornerHeight: r, transform: nil)
+}
+
+func drawGlyph(_ ctx: CGContext, recording: Bool) {
+    ctx.setFillColor(CGColor(gray: 0, alpha: 1))
+    if !recording {
+        // 1.5 pt lines (3 px on Retina) on a 4 pt pitch; the cursor in the middle spans the full height.
+        for (i, h) in [(0, 6), (1, 10), (3, 8), (4, 4)] as [(Int, CGFloat)] {
+            ctx.addPath(capsule(CGRect(x: CGFloat(i) * 4 + 0.25, y: 9 - h / 2, width: 1.5, height: h)))
+        }
+        ctx.addPath(caretPath(Caret(stemX: 8.25, stemWidth: 1.5, top: 1, bottom: 17, serifWidth: 5, serifHeight: 1.5, fillet: 0)))
+        ctx.fillPath()
+    } else {
+        // Filled squircle with the mark knocked out (shapes must not overlap for even-odd).
+        ctx.addPath(CGPath(roundedRect: CGRect(origin: .zero, size: glyphSize), cornerWidth: 5, cornerHeight: 5, transform: nil))
+        for (i, h) in [(0, 4), (1, 6), (3, 6), (4, 4)] as [(Int, CGFloat)] {
+            ctx.addPath(capsule(CGRect(x: 2.25 + CGFloat(i) * 3, y: 9 - h / 2, width: 1.5, height: h)))
+        }
+        ctx.addPath(caretPath(Caret(stemX: 8.25, stemWidth: 1.5, top: 3, bottom: 15, serifWidth: 5, serifHeight: 1.5, fillet: 0)))
+        ctx.fillPath(using: .evenOdd)
+    }
 }
 
 func writeGlyphPDF(recording: Bool, to url: URL) {
@@ -185,29 +294,10 @@ func writeGlyphPDF(recording: Bool, to url: URL) {
     ctx.closePDF()
 }
 
-// MARK: - Asset catalog
-
-let info = ["author": "xcode", "version": 1] as [String: Any]
-mkdir(catalog)
-writeJSON(["info": info], to: catalog.appendingPathComponent("Contents.json"))
-
-let appIconSet = catalog.appendingPathComponent("AppIcon.appiconset")
-try? fm.removeItem(at: appIconSet)
-mkdir(appIconSet)
-var images: [[String: String]] = []
-for pt in [16, 32, 128, 256, 512] {
-    for scale in [1, 2] {
-        let name = "icon_\(pt)x\(pt)\(scale == 2 ? "@2x" : "").png"
-        writePNG(renderAppIcon(px: pt * scale), to: appIconSet.appendingPathComponent(name))
-        images.append(["filename": name, "idiom": "mac", "scale": "\(scale)x", "size": "\(pt)x\(pt)"])
-    }
-}
-writeJSON(["images": images, "info": info], to: appIconSet.appendingPathComponent("Contents.json"))
-
 for (name, recording) in [("MenuBarIcon", false), ("MenuBarIconRecording", true)] {
     let set = catalog.appendingPathComponent("\(name).imageset")
     try? fm.removeItem(at: set)
-    mkdir(set)
+    try! fm.createDirectory(at: set, withIntermediateDirectories: true)
     writeGlyphPDF(recording: recording, to: set.appendingPathComponent("\(name).pdf"))
     writeJSON([
         "images": [["filename": "\(name).pdf", "idiom": "universal"]],
@@ -216,83 +306,33 @@ for (name, recording) in [("MenuBarIcon", false), ("MenuBarIconRecording", true)
     ], to: set.appendingPathComponent("Contents.json"))
 }
 
-// MARK: - Icon Composer bundle (Liquid Glass): background fill + glass waveform layer
+// MARK: - Website favicon: the same art, flattened
 
-let iconBundle = root.appendingPathComponent("Tools/AppIcon.icon")
-try? fm.removeItem(at: iconBundle)
-mkdir(iconBundle.appendingPathComponent("Assets"))
 do {
-    // Layer artwork is authored on the 1024 canvas; SVG is y-down.
-    let rects = iconBars(small: false).map { r in
-        String(format: "  <rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%.1f\" rx=\"%.1f\" fill=\"#FFFFFF\"/>",
-               r.minX, canvas - r.maxY, r.width, r.height, r.width / 2)
-    }
-    let svg = """
-    <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-    \(rects.joined(separator: "\n"))
-    </svg>
-
+    let defs = vGradient("bg", bgTopHex, bgBottomHex) + caretGradient
+        + barSlots.map { vGradient("bar\($0)", slots[$0]!.top, slots[$0]!.bottom) }.joined()
+    // Hairline edge so the white page doesn't vanish on white browser tabs.
+    let body = """
+    <rect x="4" y="4" width="1016" height="1016" rx="228" fill="url(#bg)" stroke="#C9CCD6" stroke-width="8"/>
+      \(scaled(barSlots.map { barSVG($0, fill: "url(#bar\($0))") }.joined() + "<path d=\"\(caretD)\" fill=\"url(#caret)\"/>"))
     """
-    try! svg.write(to: iconBundle.appendingPathComponent("Assets/Waveform.svg"), atomically: true, encoding: .utf8)
-    func p3String(_ c: CGColor) -> String {
-        let comps = c.components!
-        return "display-p3:" + comps.map { String(format: "%.5f", $0) }.joined(separator: ",")
-    }
-    writeJSON([
-        "fill": ["linear-gradient": [p3String(bgTop), p3String(bgBottom)]],
-        "groups": [[
-            "layers": [["glass": true, "image-name": "Waveform.svg", "name": "Waveform"]],
-            "shadow": ["kind": "neutral", "opacity": 0.5],
-            "translucency": ["enabled": true, "value": 0.4],
-        ]],
-        "supported-platforms": ["circles": ["watchOS"], "squares": "shared"],
-    ], to: iconBundle.appendingPathComponent("icon.json"))
+    try! svgDocument(defs: defs, body: body).write(to: root.appendingPathComponent("site/icon.svg"), atomically: true, encoding: .utf8)
 }
 
 // MARK: - Previews
 
-mkdir(previewDir)
-do {
-    // App icon: 1024 on the left, then 16/32/64/128 at 1x on light and dark strips.
-    let w = 1024 + 40 + 420, h = 1024
-    let ctx = bitmap(w, h, space: p3)
-    ctx.setFillColor(color(0.93, 0.93, 0.95)); ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
-    ctx.draw(renderAppIcon(px: 1024), in: CGRect(x: 0, y: 0, width: 1024, height: 1024))
-    let sizes = [16, 32, 64, 128]
-    for (row, bg) in [color(0.96, 0.96, 0.97), color(0.12, 0.12, 0.14)].enumerated() {
-        let strip = CGRect(x: 1064, y: CGFloat(h / 2 + 40 - row * 440), width: 400, height: 380)
-        ctx.setFillColor(bg); ctx.fill(strip)
-        var x = strip.minX + 20
-        for s in sizes {
-            // Each size rendered natively and placed 1:1.
-            ctx.draw(renderAppIcon(px: s), in: CGRect(x: x, y: strip.midY - CGFloat(s) / 2, width: CGFloat(s), height: CGFloat(s)))
-            x += CGFloat(s) + 24
-        }
-    }
-    writePNG(ctx.makeImage()!, to: previewDir.appendingPathComponent("preview-appicon.png"))
-
-    // Separate magnified sheet: each small size rendered natively, then enlarged 6x without smoothing.
-    let mag = 6
-    let mw = (16 + 32 + 64 + 128 + 5 * 8) * mag, mh = 2 * (128 + 16) * mag
-    let m = bitmap(mw, mh, space: p3)
-    m.interpolationQuality = .none
-    for (row, bg) in [color(0.96, 0.96, 0.97), color(0.12, 0.12, 0.14)].enumerated() {
-        let y = CGFloat((1 - row) * (128 + 16) * mag)
-        m.setFillColor(bg); m.fill(CGRect(x: 0, y: y, width: CGFloat(mw), height: CGFloat((128 + 16) * mag)))
-        var x = CGFloat(8 * mag)
-        for s in sizes {
-            m.draw(renderAppIcon(px: s), in: CGRect(x: x, y: y + CGFloat(8 * mag), width: CGFloat(s * mag), height: CGFloat(s * mag)))
-            x += CGFloat((s + 8) * mag)
-        }
-    }
-    writePNG(m.makeImage()!, to: previewDir.appendingPathComponent("preview-appicon-small-magnified.png"))
+for rendition in ["Default", "Dark", "ClearLight", "ClearDark", "TintedLight", "TintedDark"] {
+    renderIcon(px: 512, rendition: rendition, to: previewDir.appendingPathComponent("appicon-\(rendition).png"))
+}
+for (px, file) in [(16, "icon_16x16"), (32, "icon_32x32"), (64, "icon_32x32@2x"), (128, "icon_128x128")] {
+    let dest = previewDir.appendingPathComponent("appicon-\(px).png")
+    try? fm.removeItem(at: dest)
+    try! fm.copyItem(at: appIconSet.appendingPathComponent("\(file).png"), to: dest)
 }
 do {
     // Menu bar: both glyphs at 1x and 2x on light and dark bars, magnified 8x (nearest neighbour).
-    let mag = 8
-    let barH = 24
-    let cols = 4, colW = 34
-    let w = cols * colW * mag, h = 2 * barH * mag
+    let mag = 8, barH = 24, colW = 34
+    let w = 4 * colW * mag, h = 2 * barH * mag
     let ctx = bitmap(w, h)
     ctx.interpolationQuality = .none
     for (row, (bg, fg)) in [(CGColor(srgbRed: 0.92, green: 0.92, blue: 0.93, alpha: 1), CGColor(gray: 0.1, alpha: 1)),
@@ -300,16 +340,16 @@ do {
         let y = (1 - row) * barH * mag
         ctx.setFillColor(bg); ctx.fill(CGRect(x: 0, y: y, width: w, height: barH * mag))
         for (col, (recording, scale)) in [(false, 1), (true, 1), (false, 2), (true, 2)].enumerated() {
-            // Tint the template: render glyph mask, then fill through it.
-            let glyph = renderGlyph(recording: recording, scale: scale)
+            let g = bitmap(18 * scale, 18 * scale)
+            g.scaleBy(x: CGFloat(scale), y: CGFloat(scale))
+            drawGlyph(g, recording: recording)
             let tinted = bitmap(18 * scale, 18 * scale)
-            tinted.clip(to: CGRect(x: 0, y: 0, width: 18 * scale, height: 18 * scale), mask: glyph)
+            tinted.clip(to: CGRect(x: 0, y: 0, width: 18 * scale, height: 18 * scale), mask: g.makeImage()!)
             tinted.setFillColor(fg); tinted.fill(CGRect(x: 0, y: 0, width: 18 * scale, height: 18 * scale))
-            let x = (col * colW + 8) * mag, gy = y + 3 * mag
-            ctx.draw(tinted.makeImage()!, in: CGRect(x: x, y: gy, width: 18 * mag, height: 18 * mag))
+            ctx.draw(tinted.makeImage()!, in: CGRect(x: (col * colW + 8) * mag, y: y + 3 * mag, width: 18 * mag, height: 18 * mag))
         }
     }
-    writePNG(ctx.makeImage()!, to: previewDir.appendingPathComponent("preview-menubar.png"))
+    writePNG(ctx.makeImage()!, to: previewDir.appendingPathComponent("menubar.png"))
 }
 
-print("Wrote \(catalog.path), \(iconBundle.path), previews in \(previewDir.path)")
+print("Wrote \(iconBundle.path), \(catalog.path), site/icon.svg; previews in \(previewDir.path)")

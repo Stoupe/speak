@@ -1,33 +1,88 @@
 {
   "fill" : {
     "linear-gradient" : [
-      "display-p3:0.47000,0.42000,1.00000,1.00000",
-      "display-p3:0.20000,0.13000,0.66000,1.00000"
+      "display-p3:1.00000,1.00000,1.00000,1.00000",
+      "display-p3:0.89000,0.90000,0.93000,1.00000"
     ]
   },
   "groups" : [
     {
       "layers" : [
         {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "display-p3:0.30000,0.60000,1.00000,1.00000"
+              }
+            }
+          ],
           "glass" : true,
-          "image-name" : "Waveform.svg",
-          "name" : "Waveform"
+          "image-name" : "Caret.svg",
+          "name" : "Caret"
         }
       ],
+      "lighting" : "individual",
+      "name" : "Cursor",
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
       },
+      "specular" : true,
       "translucency" : {
         "enabled" : true,
-        "value" : 0.40000000000000002
+        "value" : 0.10000000000000001
+      }
+    },
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "Bar1.svg",
+          "name" : "Bar1"
+        },
+        {
+          "glass" : true,
+          "image-name" : "Bar2.svg",
+          "name" : "Bar2"
+        },
+        {
+          "glass" : true,
+          "image-name" : "Bar3.svg",
+          "name" : "Bar3"
+        },
+        {
+          "glass" : true,
+          "image-name" : "Bar4.svg",
+          "name" : "Bar4"
+        },
+        {
+          "glass" : true,
+          "image-name" : "Bar5.svg",
+          "name" : "Bar5"
+        },
+        {
+          "glass" : true,
+          "image-name" : "Bar6.svg",
+          "name" : "Bar6"
+        }
+      ],
+      "lighting" : "individual",
+      "name" : "Voice",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.34999999999999998
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.25
       }
     }
   ],
   "supported-platforms" : {
-    "circles" : [
-      "watchOS"
-    ],
-    "squares" : "shared"
+    "squares" : [
+      "macOS"
+    ]
   }
 }

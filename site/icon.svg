@@ -1,16 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <defs>
-    <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#786BFF"/>
-      <stop offset="1" stop-color="#3321A8"/>
-    </linearGradient>
-  </defs>
-  <rect width="1024" height="1024" rx="230" fill="url(#fill)"/>
-  <g fill="#fff">
-    <rect x="254.7" y="423.2" width="61.8" height="177.6" rx="30.9"/>
-    <rect x="367.9" y="356.6" width="61.8" height="310.8" rx="30.9"/>
-    <rect x="481.1" y="290.0" width="61.8" height="444.0" rx="30.9"/>
-    <rect x="594.3" y="383.2" width="61.8" height="257.5" rx="30.9"/>
-    <rect x="707.5" y="441.0" width="61.8" height="142.1" rx="30.9"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E2E4EB"/></linearGradient><linearGradient id="caret" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3C8BFF"/><stop offset="1" stop-color="#0A66F0"/></linearGradient><linearGradient id="bar0" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9CCD6"/><stop offset="1" stop-color="#B4B8C6"/></linearGradient><linearGradient id="bar1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9AEBE"/><stop offset="1" stop-color="#9298AC"/></linearGradient><linearGradient id="bar2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8A90A6"/><stop offset="1" stop-color="#747B94"/></linearGradient><linearGradient id="bar4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8A90A6"/><stop offset="1" stop-color="#747B94"/></linearGradient><linearGradient id="bar5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9AEBE"/><stop offset="1" stop-color="#9298AC"/></linearGradient><linearGradient id="bar6" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9CCD6"/><stop offset="1" stop-color="#B4B8C6"/></linearGradient></defs>
+  <rect x="4" y="4" width="1016" height="1016" rx="228" fill="url(#bg)" stroke="#C9CCD6" stroke-width="8"/>
+  <g transform="translate(512 512) scale(0.92) translate(-512 -512)"><rect x="166.0" y="427.0" width="56.0" height="170.0" rx="28.0" fill="url(#bar0)"/><rect x="272.0" y="362.0" width="56.0" height="300.0" rx="28.0" fill="url(#bar1)"/><rect x="378.0" y="297.0" width="56.0" height="430.0" rx="28.0" fill="url(#bar2)"/><rect x="590.0" y="312.0" width="56.0" height="400.0" rx="28.0" fill="url(#bar4)"/><rect x="696.0" y="382.0" width="56.0" height="260.0" rx="28.0" fill="url(#bar5)"/><rect x="802.0" y="437.0" width="56.0" height="150.0" rx="28.0" fill="url(#bar6)"/><path d="M449.00 212.00L575.00 212.00C588.81 212.00 600.00 223.19 600.00 237.00C600.00 250.81 588.81 262.00 575.00 262.00L562.00 262.00C549.85 262.00 540.00 271.85 540.00 284.00L540.00 740.00C540.00 752.15 549.85 762.00 562.00 762.00L575.00 762.00C588.81 762.00 600.00 773.19 600.00 787.00C600.00 800.81 588.81 812.00 575.00 812.00L449.00 812.00C435.19 812.00 424.00 800.81 424.00 787.00C424.00 773.19 435.19 762.00 449.00 762.00L462.00 762.00C474.15 762.00 484.00 752.15 484.00 740.00L484.00 284.00C484.00 271.85 474.15 262.00 462.00 262.00L449.00 262.00C435.19 262.00 424.00 250.81 424.00 237.00C424.00 223.19 435.19 212.00 449.00 212.00Z" fill="url(#caret)"/></g>
 </svg>
