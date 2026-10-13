@@ -109,14 +109,6 @@ kbd {
   flex: none;
 }
 
-.logo-top {
-  stop-color: oklch(0.68 0.19 var(--h));
-}
-
-.logo-bottom {
-  stop-color: oklch(0.42 0.2 calc(var(--h) - 10));
-}
-
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
@@ -148,6 +140,79 @@ main > *,
   font-weight: 700;
   letter-spacing: -0.01em;
   text-decoration: none;
+  /* The wordmark's hover area (wordmark.js) is this link's box. The padding stretches it well past everything the
+     wordmark draws (the p's descender, the bars travelling off to the right) and the negative margin keeps the
+     layout where it was. It also gives the focus ring room to clear the descender. */
+  margin: -0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+}
+
+/* Header wordmark. The viewBox stops at the baseline so flex centring lines up the caps, not the p's descender. */
+.wordmark {
+  height: 1.375rem;
+  width: auto;
+  overflow: visible;
+
+  /* Only the link's fixed box counts for hover, never the shapes. Otherwise the descender or a bar that draws past
+     the box would start a collapse, vanish from under the pointer and re-expand it, over and over. */
+  * {
+    pointer-events: none;
+  }
+
+  text {
+    fill: currentColor;
+    font-family: var(--display);
+    font-weight: 700;
+  }
+}
+
+.wordmark-bar-1 { fill: light-dark(#c4c8d3, #464c5e); }
+.wordmark-bar-2 { fill: light-dark(#a2a7b7, #646b81); }
+.wordmark-bar-3 { fill: light-dark(#7e859b, #8b92a8); }
+
+/* The caret follows the theme's drifting accent, like the buttons, so it always stands out from the page. It's drawn
+   as an outline only: the 40-unit stroke straddles the path, leaving a hairline of page showing down the stem. */
+.wordmark-caret {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 40;
+  stroke-linejoin: round;
+}
+
+/* `hidden` is an HTML attribute, so browsers don't hide an <svg> with it on their own. */
+.wordmark[hidden] {
+  display: none;
+}
+
+/* Same type size as the Imperio wordmark (its viewBox is 600 units tall rather than 640), a weight lighter. */
+.wordmark-speak {
+  height: 1.29rem;
+
+  text {
+    font-weight: 600;
+  }
+}
+
+/* The app icon's cursor, in the drifting accent like the buttons. Stem 68 (the icon's is 56), serifs 56. */
+.wordmark-cursor {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+}
+
+.wordmark-cursor-stem {
+  stroke-width: 68;
+}
+
+.wordmark-cursor-serifs {
+  stroke-width: 56;
+}
+
+/* wordmark.js moves these; scaling a bar shrinks it about its own centre. */
+.wordmark-bar {
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 .masthead-links {
@@ -170,13 +235,31 @@ main > *,
   }
 }
 
-/* Lucide's arrow-up-right: the usual "leaves this site" mark. */
-.external {
+/* Lucide's arrow-up-right is the usual "leaves this site" mark; the star and heart use the same drawing style. */
+.external,
+.line-icon {
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* The live star count, set by stars.js. Stays hidden until there is one. */
+.stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  margin-left: 0.25rem;
+  padding-left: 0.625rem;
+  border-left: 1px solid var(--rule);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+
+  &[hidden] {
+    display: none;
+  }
 }
 
 .visually-hidden {
@@ -229,6 +312,8 @@ main > *,
 /* Hero */
 
 .hero {
+  --title: clamp(3rem, 8vw, 6rem);
+
   display: grid;
   justify-items: center;
   padding-block: clamp(3rem, 8vw, 5.5rem) clamp(2.5rem, 5vw, 3.5rem);
@@ -240,7 +325,7 @@ main > *,
 
   h1 {
     font-family: var(--display);
-    font-size: clamp(3rem, 8vw, 6rem);
+    font-size: var(--title);
     font-weight: 750;
     line-height: 0.98;
     letter-spacing: -0.02em;
@@ -263,6 +348,100 @@ main > *,
     font-weight: 750;
     letter-spacing: -0.04em;
   }
+}
+
+/* Waveforms beside the headline, playing out the app once on load and then left running: the messy one comes in
+   by the first line, as if someone's talking, and the clean one follows by the second line as the text goes out.
+   Bars come in one at a time, so the sound seems to run into the headline from the left and out of it to the
+   right. Everything rests in its finished state, so reduced motion gets still waveforms and a lit headline.
+   Bars are full height and scaled, so only transforms and opacity animate. Hidden where there's no room beside
+   the text. */
+.headline {
+  width: 100%;
+
+  @media (width >= 56rem) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: clamp(1.25rem, 2.5vw, 2rem);
+
+    /* The first line carries on the messy wave's sweep: its bright edge sets off as the last bar comes in and
+       moves at about the wave's speed (450px/s at full size). A mask three times the line's width, bright on
+       the left and dim on the right, slides across from the edge being just off the line to just past it. */
+    .said {
+      mask-image: linear-gradient(to right, #000 45%, rgb(0 0 0 / 0.55) 55%);
+      mask-size: 300% 100%;
+      mask-position: 17.5% 0;
+      animation: light-up 1.6s linear 1s both;
+    }
+  }
+}
+
+.wave {
+  display: none;
+  gap: 5px;
+  height: calc(var(--title) * 0.55);
+  overflow: hidden;
+
+  @media (width >= 56rem) {
+    display: flex;
+  }
+
+  i {
+    flex: none;
+    width: 3px;
+    height: 100%;
+    border-radius: 99px;
+    scale: 1 var(--high);
+  }
+}
+
+.wave-said {
+  align-self: start;
+  justify-content: flex-end;
+  margin-top: calc(var(--title) * 0.22);
+  opacity: 0.4;
+  mask-image: linear-gradient(to right, transparent, #000 70%);
+
+  i {
+    background: var(--muted);
+    /* Outermost bar first, so the sound travels in towards the text. */
+    animation:
+      chatter var(--duration) ease-in-out var(--delay) infinite alternate,
+      appear 0.4s linear calc(0.2s + (var(--bars) - var(--i)) * 0.018s) both;
+  }
+}
+
+/* Starts a beat after the first line has lit up. */
+.wave-clean {
+  align-self: end;
+  margin-bottom: calc(var(--title) * 0.18);
+  opacity: 0.42;
+  mask-image: linear-gradient(to left, transparent, #000 70%);
+
+  i {
+    background: var(--accent);
+    animation:
+      swell 2.6s ease-in-out calc(var(--i) * 0.11s - 20s) infinite,
+      appear 0.6s ease-out calc(3.1s + var(--i) * 0.025s) both;
+  }
+}
+
+@keyframes chatter {
+  from { scale: 1 var(--low); }
+  to { scale: 1 var(--high); }
+}
+
+@keyframes swell {
+  0%, 100% { scale: 1 calc(var(--high) * 0.18); }
+  50% { scale: 1 var(--high); }
+}
+
+@keyframes appear {
+  from { opacity: 0; }
+}
+
+@keyframes light-up {
+  from { mask-position: 82.5% 0; }
 }
 
 /* A small version of Speak's pill, with the one thing to know. */
@@ -832,13 +1011,33 @@ main > *,
 }
 
 .footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
   padding-block: 2rem 3rem;
   border-top: 1px solid var(--rule);
   color: var(--muted);
   font-size: 0.9375rem;
 }
 
+.footer-links {
+  display: flex;
+  gap: 1.25rem;
+}
+
 @media (width < 40rem) {
+  /* The header has little room: the GitHub mark and the star count are enough. The name stays for screen readers. */
+  .github-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .keys > div {
     grid-template-columns: 1fr;
     gap: 0.25rem;

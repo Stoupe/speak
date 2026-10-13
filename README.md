@@ -1,8 +1,10 @@
 # Speak
 
 Hold a key, talk, let go, and tidy text appears wherever your cursor is. A small, private take on
-[Wispr Flow](https://wisprflow.ai) for macOS. Speech recognition and cleanup both run on your Mac;
-nothing is sent anywhere.
+[Wispr Flow](https://wisprflow.ai) for macOS. Speech recognition and cleanup both run on your Mac,
+so what you say never leaves it.
+
+If Speak is useful to you, a star on the repo helps others find it.
 
 ## Requirements
 
@@ -46,6 +48,12 @@ If another app also listens to the fn/Globe key, pick a different trigger key in
 Audio goes from the microphone straight to Apple's on-device speech recognizer and is discarded.
 The last 100 dictations (text only) are kept in `~/Library/Application Support/Speak/history.json`
 for the menu; clear them from Settings.
+
+Speak itself makes one kind of network request: the update check. About once a day, if you allow it,
+it downloads a small feed file from `stoupe.github.io` to see whether there's a new version. It sends
+nothing about you or your dictations, only what any web request carries (your IP address, and Speak's
+version in the user agent). Turn it off in Settings, or use Check for Updates… from the menu instead.
+The first time you use Speak, macOS may also download Apple's on-device speech model.
 
 ## Building
 
