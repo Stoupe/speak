@@ -51,8 +51,8 @@ Speak.app
 - [x] Run `Tools/update-test.sh`: 0.0.1 → 0.0.2 from the menu, relaunched, permissions kept, Settings fits
 - [x] Sparkle signing key made (private key in the Keychain, backed up) and `FEED_URL` / `UPDATE_KEY` /
       `DOWNLOADS_URL` filled in `Tools/release.sh`
-- [ ] First release: Developer ID signing + notarization via `Tools/release.sh`, then a GitHub Release
-- [ ] Publish `Stoupe/speak`, then turn on GitHub Sponsors (the site's Sponsor link and `.github/FUNDING.yml` already point
+- [x] First release: 0.1 (build 25) notarized, on GitHub Releases, feed live at `stoupe.github.io/speak/appcast.xml`
+- [ ] Turn on GitHub Sponsors (the site's Sponsor link and `.github/FUNDING.yml` already point
       at `Stoupe`; the star count in `site/stars.js` stays hidden until the repo has `MIN_STARS`)
 - [ ] Landing page (`site/`): self-host the fonts (GitHub links are in; they assume `Stoupe/speak` is public)
 - [ ] Later: Homebrew cask, command mode (select text, speak an edit), snippets
@@ -86,3 +86,7 @@ Things learned the hard way, on an M1 with 8 GB:
 - Site wordmark (`site/wordmark.js`): WebKit ignores a `clip-path` on `<text>` when the clip region doesn't overlap
   the text, and draws the whole word; clip a `<g>` around the text instead. `hidden` doesn't hide an `<svg>`
   without a CSS rule. Offscreen WKWebView snapshots don't advance animations, so check motion by seeking them.
+- Notarization: the account's first submission took ~1.5 days ("In Progress" the whole time); `release.sh`'s
+  30 min wait times out, so finish by hand once `notarytool info` says Accepted. `notarytool` can't read its
+  Keychain profile while the screen is locked. The first `generate_appcast` with the real key waits on a
+  Keychain Allow dialog.
