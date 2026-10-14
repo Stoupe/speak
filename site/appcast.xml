@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Speak</title>
+        <item>
+            <title>0.1</title>
+            <pubDate>Thu, 15 Oct 2026 09:06:47 +1300</pubDate>
+            <sparkle:version>25</sparkle:version>
+            <sparkle:shortVersionString>0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/Stoupe/speak/releases/download/v0.1/Speak-0.1.zip" length="3155153" type="application/octet-stream" sparkle:edSignature="G1BWEcaS9b3Pp1awWG2SV7MUD028De46Hc8+2rJ8X4jZYq4mXEVM3e8zBI1vIwl4NYoSNv84UWV+20o+bM4uCw=="/>
+        </item>
+    </channel>
+</rss>
