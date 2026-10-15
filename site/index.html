@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Inter:opsz,wght@14..32,400..900&display=swap">
   <link rel="stylesheet" href="style.css">
-  <script src="demo.js" defer></script>
+  <script src="video.js" defer></script>
   <script src="waves.js" defer></script>
   <script src="wordmark.js" defer></script>
   <script src="stars.js" defer></script>
@@ -139,6 +139,18 @@
       <p class="note">Free. No account needed.</p>
     </section>
 
+    <figure class="demo">
+      <!-- Recorded with Tools/demo.sh terminal (copied from docs/terminal.mp4). The animated chat demo it replaced
+           (demo.js + the .desktop styles) is kept below, switched off. -->
+      <video class="demo-video" src="demo.mp4" poster="demo-poster.jpg" width="1720" height="1080"
+             muted loop playsinline preload="auto" data-video
+             aria-label="Speak in a terminal running Claude Code. While fn is held, Speak's pill shows the words as they're heard and tidies them up, dropping a spoken correction. On release, the prompt is pasted in and sent."></video>
+      <figcaption>
+        <span>Works anywhere you can type.</span>
+        <button class="demo-toggle" type="button" data-toggle aria-pressed="false" hidden>Pause</button>
+      </figcaption>
+    </figure>
+<!--
     <figure class="demo" data-demo>
       <div class="desktop" role="img"
            aria-label="Speak in a chat app. While fn is held, Speak's pill shows the words as they're heard and tidies them up. On release, the text is pasted into the message box and sent.">
@@ -173,6 +185,7 @@
         <button class="demo-toggle" type="button" data-toggle aria-pressed="false" hidden>Pause</button>
       </figcaption>
     </figure>
+-->
 
     <ul class="benefits" aria-label="Why Speak">
       <li>

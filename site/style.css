@@ -511,6 +511,14 @@ main > *,
   font-size: 0.9375rem;
 }
 
+.demo-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: clamp(1.25rem, 3vw, 2rem);
+}
+
+/* The chat demo (demo.js), switched off for now; see index.html. */
 .desktop {
   container-type: inline-size;
   overflow: hidden;
