@@ -101,6 +101,9 @@ final class DictationController {
     }
 
     func launch() {
+        #if DEBUG
+        if let scene = DemoScene.requested { return startDemo(scene) }
+        #endif
         recorder.warmUp()
         _ = panel // Build the pill's window now so the first key press doesn't pay for it.
         refreshPermissions()
@@ -126,6 +129,22 @@ final class DictationController {
             showSetup()
         }
     }
+
+    #if DEBUG
+    /// Plays a scripted scene for screenshots instead of starting the real app (see `DemoScene`).
+    private func startDemo(_ scene: DemoScene) {
+        modelState = .ready
+        hasAccessibility = true
+        history = History(fileURL: nil)
+        for text in scene.history.reversed() {
+            history.add(HistoryItem(raw: text, text: text, appName: nil))
+        }
+        demo = DemoPlayer(scene: scene, pill: pill, panel: panel)
+        demo?.start()
+    }
+
+    @ObservationIgnored private var demo: DemoPlayer?
+    #endif
 
     // MARK: Permissions
 

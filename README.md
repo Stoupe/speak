@@ -4,6 +4,8 @@ Hold a key, talk, let go, and tidy text appears wherever your cursor is. A small
 [Wispr Flow](https://wisprflow.ai) for macOS. Speech recognition and cleanup both run on your Mac,
 so what you say never leaves it.
 
+<img src="docs/terminal.gif" width="860" alt="Dictating a prompt into Claude Code: the words appear in Speak's card as you talk, the correction is cleaned up, and the text is pasted into the terminal">
+
 If Speak is useful to you, a star on the repo helps others find it.
 
 ## Requirements
@@ -31,6 +33,8 @@ together. Turn it off in Settings.
 The trigger key can be changed to right Option or right Command in Settings (handy for keyboards
 without a fn/Globe key). The menu bar icon shows recent dictations: click one to copy it, or hold ⌥
 to copy what you actually said before cleanup.
+
+<img src="docs/menu.png" width="462" alt="Speak's menu bar menu with five recent dictations">
 
 ## Setup
 

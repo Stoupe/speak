@@ -16,6 +16,10 @@ final class PillPanel: NSPanel, NSWindowDelegate {
 
     private let model: PillModel
     private var isPositioning = false
+    #if DEBUG
+    /// Demo scenes put the pill where their backdrop needs it, without touching the saved position.
+    var demoAnchor: NSPoint?
+    #endif
 
     init(model: PillModel) {
         self.model = model
@@ -104,6 +108,12 @@ final class PillPanel: NSPanel, NSWindowDelegate {
     private func placeAtSavedOrDefaultPosition() {
         isPositioning = true
         defer { isPositioning = false }
+        #if DEBUG
+        if let demoAnchor {
+            model.cardBelow = false
+            return setFrameOrigin(frame(for: demoAnchor).origin)
+        }
+        #endif
         var anchor = defaultAnchor()
         if let saved = savedAnchor(),
            // Only reuse it if it's still on a connected screen.
