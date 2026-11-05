@@ -3,12 +3,23 @@
     <channel>
         <title>Speak</title>
         <item>
+            <title>0.2</title>
+            <pubDate>Thu, 05 Nov 2026 17:06:37 +1300</pubDate>
+            <sparkle:version>37</sparkle:version>
+            <sparkle:shortVersionString>0.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/Stoupe/speak/releases/download/v0.2/Speak-0.2.zip" length="3148522" type="application/octet-stream" sparkle:edSignature="OtDwVoPX4KlR8+cEsG6rYK8pDrloL7r5ldVBQpI1lVz3lefh4giUW89zCQXjoZYVr860aSdsYih0bpI+KDzUBA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/Stoupe/speak/releases/download/v0.2/Speak37-25.delta" sparkle:deltaFrom="25" length="51998" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="974464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="8aG2lG8+ZE2UK0OxOSLdHDnsL3r/tFuzejh7pY7a4/WGvhet59dudmevDancxzDJBHqVbA9pUmzQkk7w9rsfDg=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>0.1</title>
             <pubDate>Thu, 15 Oct 2026 09:06:47 +1300</pubDate>
             <sparkle:version>25</sparkle:version>
             <sparkle:shortVersionString>0.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/Stoupe/speak/releases/download/v0.1/Speak-0.1.zip" length="3155153" type="application/octet-stream" sparkle:edSignature="G1BWEcaS9b3Pp1awWG2SV7MUD028De46Hc8+2rJ8X4jZYq4mXEVM3e8zBI1vIwl4NYoSNv84UWV+20o+bM4uCw=="/>
+            <enclosure url="https://github.com/Stoupe/speak/releases/download/v0.2/Speak-0.1.zip" length="3155153" type="application/octet-stream" sparkle:edSignature="G1BWEcaS9b3Pp1awWG2SV7MUD028De46Hc8+2rJ8X4jZYq4mXEVM3e8zBI1vIwl4NYoSNv84UWV+20o+bM4uCw=="/>
         </item>
     </channel>
 </rss>
