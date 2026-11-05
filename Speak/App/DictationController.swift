@@ -380,11 +380,13 @@ final class DictationController {
 
             // Don't paste into a different app than the one you were dictating into.
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == recording.appPID else {
-                log.info("frontmost app changed; copying instead of pasting")
-                inserter.copy(result.text)
+                log.notice("frontmost app changed; copied \(result.text.count) chars instead of pasting")
+                await inserter.insert(result.text, paste: false)
                 return showNotice("App changed — copied instead")
             }
-            await inserter.insert(withTrailingSpace(result.text))
+            let text = withTrailingSpace(result.text)
+            await inserter.insert(text)
+            log.notice("pasted \(text.count) chars into \(recording.appName ?? "unknown app", privacy: .public)")
         }
     }
 
