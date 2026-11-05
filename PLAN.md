@@ -17,7 +17,7 @@ talk, release, and polished text is pasted into whatever field has focus. Englis
 | Insertion | Clipboard paste (⌘V via `CGEvent`); the dictation stays on the clipboard (no restore); pastes ≥ 1 s apart; a space is added after each paste | Works everywhere incl. Electron, browsers, terminals; a paste that didn't land is one ⌘V away |
 | Pill UI | One glass shape that grows into a live-text card; bottom-centre by default, draggable, position remembered | Minimal, out of the way |
 | Distribution | Direct download (GitHub Releases), MIT licence; Homebrew later | The App Store sandbox blocks the event tap and paste |
-| Updates | Sparkle 2 (SwiftPM), on only in `release.sh` builds; appcast published from `site/appcast.xml` | Local builds must never be replaced by a release (different certificate resets permissions) |
+| Updates | Sparkle 2 (SwiftPM), on only in `release.sh` builds; appcast published from `site/appcast.xml`, which `release.sh --publish` updates through a PR after the GitHub release is up | Local builds must never be replaced by a release (different certificate resets permissions) |
 | Cloud | Not now. Engines sit behind `Transcriber` / `TextPolisher` protocols | Local-first |
 
 ## Architecture
@@ -90,7 +90,8 @@ Things learned the hard way, on an M1 with 8 GB:
   the text, and draws the whole word; clip a `<g>` around the text instead. `hidden` doesn't hide an `<svg>`
   without a CSS rule. Offscreen WKWebView snapshots don't advance animations, so check motion by seeking them.
 - Notarization: the account's first submission took ~1.5 days ("In Progress" the whole time); `release.sh`'s
-  30 min wait times out, so finish by hand once `notarytool info` says Accepted. `notarytool` can't read its
+  30 min wait times out; once `notarytool info` says Accepted, finish with `release.sh --resume` (it reuses the
+  recorded build, commit and submission). `notarytool` can't read its
   Keychain profile while the screen is locked. The first `generate_appcast` with the real key waits on a
   Keychain Allow dialog.
 - Clipboard restore after pasting was removed (2026-11-05): it sometimes pasted the *old* clipboard. With the text
@@ -98,3 +99,7 @@ Things learned the hard way, on an M1 with 8 GB:
   Clipboard, clipboard managers), then serves its copy, so "read" never meant "the target app read it". Writing,
   arming and posting ⌘V in one main-thread pass also meant every early read counted. Slow apps (often right after
   polish, when the Mac is busy) handled ⌘V after the 500 ms / 1.5 s restore and pasted the old contents.
+- Releases (2026-11-05): `main` takes changes only through PRs. `release.sh --publish` does the GitHub release,
+  the download check and the appcast PR in that order. The build number stays the commit count on `main`: it only
+  grows, whatever the merge style, since force pushes are blocked; the script also refuses a build that isn't higher
+  than the newest `sparkle:version` in the appcast.

@@ -27,9 +27,10 @@ xcodebuild -project Speak.xcodeproj -scheme Speak -derivedDataPath build/Derived
 # Install the Release build to /Applications and relaunch (--fresh: wipe settings, history + permissions to see onboarding)
 Tools/install.sh
 Tools/install.sh --fresh
-# Shareable build: dry run (local only), then the real thing (asks before contacting Apple)
+# Shareable build: dry run (local only), then the real thing (asks before contacting Apple, then before publishing)
 Tools/release.sh --dry-run
-Tools/release.sh --version 0.3
+Tools/release.sh --version 0.3 --publish --notes notes.md
+Tools/release.sh --version 0.3 --resume --publish --notes notes.md   # after notarization outlasted the 30 min wait
 # README screenshots and recordings from scripted scenes (Speak/Demo/DemoScene.swift) → docs/
 Tools/demo.sh terminal   # GIF + MP4; also: card, menu (PNG)
 # Sparkle update test: old + new dry-run builds, throwaway key, appcast served on localhost
@@ -41,6 +42,18 @@ Tools/update-test.sh
   asked.
 - Signing uses the "Apple Development" identity (team V4TSTMTS4F) so TCC permissions survive rebuilds.
 - Never run `Tools/release.sh` without `--dry-run` unless asked: it contacts Apple (Developer ID, notarization).
+- `main` is protected: never push to it. Branch, push, open a PR (`gh pr create`); merge only when asked.
+
+## Releasing
+1. Release-prep PR: bump `MARKETING_VERSION` in the project if needed, update `PLAN.md`. Merge it.
+2. `git switch main && git pull`, then `Tools/release.sh --dry-run`.
+3. Write release notes to a file outside the repo (or skip `--notes` for GitHub's generated ones), then
+   `Tools/release.sh --version X.Y --publish --notes FILE`. It refuses to run unless on `main`, clean and level with
+   `origin/main`, and unless the build number (commit count) is higher than the newest in `site/appcast.xml`.
+4. It then creates the GitHub release `vX.Y` on the built commit with the zip and any deltas, checks the download,
+   and opens and merges a PR with the new `site/appcast.xml`; that merge deploys the feed. Order matters: the feed
+   must never go live before its download exists.
+5. `build/updates/` keeps every released zip so Sparkle can make delta updates; it exists only on this Mac.
 - Sparkle updates are on only when a build gets `SPEAK_FEED_URL` / `SPEAK_UPDATE_KEY` (from `release.sh`). Keep Xcode
   and `install.sh` builds without them, so a dev build never updates itself to a release. The private EdDSA key
   lives only in the maintainer's Keychain; never print, export or commit it.
