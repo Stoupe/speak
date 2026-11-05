@@ -14,7 +14,7 @@ talk, release, and polished text is pasted into whatever field has focus. Englis
 | Speech → text | Apple `SpeechAnalyzer` / `SpeechTranscriber` | Built in, streams while you talk, no dependencies |
 | Polish | Apple Foundation Models, plain-text output with worked examples, polished in pieces while speaking | On-device; guided generation was too slow on M1 |
 | Fallback | Paste the raw transcript if polish errors, refuses, times out or drops content | Never lose what was said |
-| Insertion | Clipboard paste (⌘V via `CGEvent`), old clipboard restored once the app has read it, marked transient; a space is added after each paste | Works everywhere incl. Electron, browsers, terminals |
+| Insertion | Clipboard paste (⌘V via `CGEvent`); the dictation stays on the clipboard (no restore); pastes ≥ 1 s apart; a space is added after each paste | Works everywhere incl. Electron, browsers, terminals; a paste that didn't land is one ⌘V away |
 | Pill UI | One glass shape that grows into a live-text card; bottom-centre by default, draggable, position remembered | Minimal, out of the way |
 | Distribution | Direct download (GitHub Releases), MIT licence; Homebrew later | The App Store sandbox blocks the event tap and paste |
 | Updates | Sparkle 2 (SwiftPM), on only in `release.sh` builds; appcast published from `site/appcast.xml` | Local builds must never be replaced by a release (different certificate resets permissions) |
@@ -31,7 +31,7 @@ Speak.app
 ├─ TextPolisher         protocol; FoundationModelsPolisher, PassthroughPolisher
 ├─ IncrementalPolish    polishes finished sentences while you talk, the rest on release
 ├─ ContextProvider      frontmost app → style hint (chat / email / code / default)
-├─ TextInserter         clipboard save → set → ⌘V → restore
+├─ TextInserter         clipboard set → ⌘V (dictation stays on the clipboard)
 ├─ DictationController  @Observable @MainActor coordinator
 ├─ History              JSON file in Application Support, last 100 items (text only, no audio)
 ├─ Updater              Sparkle, only when the build has a feed URL
@@ -46,6 +46,9 @@ Speak.app
 - [ ] Measure `mic live … after key down` in the log (built-in mic vs AirPods); if it's slow, find which step is
       slow before trying fixes
 - [ ] Check paste in Safari, Slack, VS Code and Terminal
+- [ ] Maybe: restore the previous clipboard again once a paste can be confirmed — watch the focused field via
+      Accessibility for the text landing (Chromium/Electron need `AXManualAccessibility`), with the restore decision
+      as a pure, tested state machine in `SpeakCore`; with no confirmation, keep the dictation on the clipboard
 - [ ] Paragraph breaks across pieces: a layout pass that returns only break positions (words can't change)
 - [ ] Maybe: Settings toggle to hide the live text (screen sharing)
 - [x] Run `Tools/update-test.sh`: 0.0.1 → 0.0.2 from the menu, relaunched, permissions kept, Settings fits
@@ -90,3 +93,8 @@ Things learned the hard way, on an M1 with 8 GB:
   30 min wait times out, so finish by hand once `notarytool info` says Accepted. `notarytool` can't read its
   Keychain profile while the screen is locked. The first `generate_appcast` with the real key waits on a
   Keychain Allow dialog.
+- Clipboard restore after pasting was removed (2026-11-05): it sometimes pasted the *old* clipboard. With the text
+  provided lazily (`NSPasteboardItemDataProvider`), macOS asks once, on the first read by anyone (Universal
+  Clipboard, clipboard managers), then serves its copy, so "read" never meant "the target app read it". Writing,
+  arming and posting ⌘V in one main-thread pass also meant every early read counted. Slow apps (often right after
+  polish, when the Mac is busy) handled ⌘V after the 500 ms / 1.5 s restore and pasted the old contents.
