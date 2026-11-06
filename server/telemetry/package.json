@@ -1,0 +1,19 @@
+{
+	"name": "speak-telemetry",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "cf dev",
+		"build": "cf build",
+		"deploy": "cf deploy",
+		"typecheck": "cf workers types && tsc",
+		"test": "node --test test/*.test.ts",
+		"db:migrate": "cf d1 migrations apply 8113e4ab-d7f9-4164-b537-239207213d89"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "beta",
+		"cf": "^1.0.0-beta.28",
+		"typescript": "^7.0.2",
+		"vite": "^8.3.0"
+	}
+}

@@ -11,12 +11,17 @@ enum Preferences {
     static let trailingSpace = "trailingSpace"
     /// Newline-separated names and terms.
     static let dictionary = "dictionary"
+    /// Anonymous usage stats (see `Telemetry`): on unless turned off, but nothing is sent until the choice has been
+    /// shown, which `usageStatsAsked` records.
+    static let usageStatsEnabled = "usageStatsEnabled"
+    static let usageStatsAsked = "usageStatsAsked"
 
     static func registerDefaults() {
         UserDefaults.standard.register(defaults: [
             polishEnabled: true,
             soundsEnabled: true,
             trailingSpace: true,
+            usageStatsEnabled: true,
         ])
     }
 

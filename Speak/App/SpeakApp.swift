@@ -7,6 +7,14 @@ struct SpeakApp: App {
 
     init() {
         Preferences.registerDefaults()
+        #if DEBUG
+        if let directory = Snapshot.requestedDirectory {
+            let controller = Snapshot.makeController()
+            _controller = State(initialValue: controller)
+            Task { await Snapshot.run(controller: controller, to: directory) }
+            return
+        }
+        #endif
         let controller = DictationController()
         controller.launch()
         _controller = State(initialValue: controller)

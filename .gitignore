@@ -8,3 +8,6 @@ xcuserdata/
 /tmp/
 CLAUDE.local.md
 docs/*.mp4
+.wrangler/
+.cloudflare/
+node_modules/
