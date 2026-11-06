@@ -46,6 +46,7 @@ final class DictationController {
     }
 
     let pill = PillModel()
+    let telemetry: Telemetry
 
     @ObservationIgnored private let transcriber = AppleSpeechTranscriber()
     @ObservationIgnored private let polisher = FoundationModelsPolisher()
@@ -54,6 +55,7 @@ final class DictationController {
     @ObservationIgnored private let inserter = TextInserter()
     @ObservationIgnored private lazy var panel = PillPanel(model: pill)
     @ObservationIgnored private let setupWindow = SetupWindowController()
+    @ObservationIgnored private let usageStatsWindow = UsageStatsWindowController()
     @ObservationIgnored private var machine = TriggerStateMachine()
     @ObservationIgnored private var current: Recording?
     /// Dictations released but not yet pasted. A new one can start while these finish.
@@ -89,7 +91,8 @@ final class DictationController {
         var livePolish: Task<Void, Never>
     }
 
-    init() {
+    init(telemetry: Telemetry = Telemetry()) {
+        self.telemetry = telemetry
         pill.onCancel = { [weak self] in self?.handle(.escape) }
         hotkeys.onEvent = { [weak self] event, time in self?.handle(event, at: time) }
         hotkeys.onClick = { [weak self] location, time in
@@ -121,12 +124,17 @@ final class DictationController {
         if polisherAvailability == .available {
             polisher.prewarm(context: PolishContext())
         }
+        telemetry.intelligenceAvailable = { [weak self] in self?.polisherAvailability == .available }
+        telemetry.start()
         // Permissions are requested from the setup window (with an explanation), not with bare system prompts.
         // After the first run, only reappear if something Speak can't work without is missing.
         let status = SetupStatus()
         if !UserDefaults.standard.bool(forKey: Preferences.setupCompleted)
             || status.microphone != .granted || !status.accessibility {
             showSetup()
+        } else if telemetry.isAvailable && !telemetry.hasAsked {
+            // Set up before usage stats existed: show the choice once. Nothing is sent until it's been seen.
+            usageStatsWindow.show(telemetry: telemetry)
         }
     }
 
@@ -182,7 +190,11 @@ final class DictationController {
         if event != .otherKey || machine.isActive {
             log.debug("event \(String(describing: event), privacy: .public) in state \(String(describing: self.machine.state), privacy: .public)")
         }
-        for action in machine.handle(event, at: time) {
+        let actions = machine.handle(event, at: time)
+        if event == .escape, actions.contains(.cancel), current != nil {
+            telemetry.record(.cancelled)
+        }
+        for action in actions {
             perform(action)
         }
         hotkeys.swallowsEscape = machine.isActive
@@ -315,6 +327,7 @@ final class DictationController {
     }
 
     private func commitRecording() {
+        let handsFree = pill.handsFree
         guard let recording = endRecording() else { return }
         playSound("Pop")
         // Whatever is still to come gets polished in one go once the transcript is final.
@@ -360,6 +373,7 @@ final class DictationController {
             guard !raw.isEmpty else {
                 closeCard(recording.recorderID)
                 await recording.incremental.cancel()
+                telemetry.record(.empty)
                 return
             }
 
@@ -375,6 +389,7 @@ final class DictationController {
             // Paste in the order dictations were spoken.
             await previous?.value
             history.add(HistoryItem(raw: raw, text: result.text, appName: recording.appName))
+            telemetry.record(.finished(words: result.text.split(whereSeparator: \.isWhitespace).count, handsFree: handsFree))
             // The card folds back into the pill as the text lands.
             closeCard(recording.recorderID)
 

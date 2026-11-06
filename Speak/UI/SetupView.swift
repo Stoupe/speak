@@ -95,6 +95,12 @@ struct SetupView: View {
                     action: { open("x-apple.systempreferences:com.apple.Siri-Settings.extension") })
             }
 
+            if controller.telemetry.isAvailable {
+                SetupSection(title: "Optional") {
+                    UsageStatsSetupSection(telemetry: controller.telemetry)
+                }
+            }
+
             HStack {
                 Text("Double-tap \(key) to keep listening without holding it. Esc cancels.")
                     .font(.callout)
@@ -231,6 +237,7 @@ final class SetupWindowController {
             bringToFront(window)
         }) { [weak self] in
             UserDefaults.standard.set(true, forKey: Preferences.setupCompleted)
+            if controller.telemetry.isAvailable { controller.telemetry.markAsked() }
             controller.refreshPermissions()
             self?.window?.close()
         }

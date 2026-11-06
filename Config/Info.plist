@@ -7,5 +7,9 @@
 	<string>$(SPEAK_FEED_URL)</string>
 	<key>SUPublicEDKey</key>
 	<string>$(SPEAK_UPDATE_KEY)</string>
+	<!-- Anonymous usage stats endpoint (see Telemetry.swift). Empty unless Tools/release.sh passes it in, so local
+	     builds never send anything. -->
+	<key>SpeakTelemetryURL</key>
+	<string>$(SPEAK_TELEMETRY_URL)</string>
 </dict>
 </plist>

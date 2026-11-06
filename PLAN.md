@@ -19,6 +19,7 @@ talk, release, and polished text is pasted into whatever field has focus. Englis
 | Distribution | Direct download (GitHub Releases), MIT licence; Homebrew later | The App Store sandbox blocks the event tap and paste |
 | Updates | Sparkle 2 (SwiftPM), on only in `release.sh` builds; appcast published from `site/appcast.xml`, which `release.sh --publish` updates through a PR after the GitHub release is up | Local builds must never be replaced by a release (different certificate resets permissions) |
 | Cloud | Not now. Engines sit behind `Transcriber` / `TextPolisher` protocols | Local-first |
+| Usage stats | One anonymous report a day (counts only, no ID), on by default but only after the choice has been shown (setup, or once after updating); release builds only; Cloudflare Worker + D1 at `speak-telemetry.stoupe.dev`, no IPs stored, logging off, 13-month retention | See how much Speak is used without giving up the privacy promise; the README lists every field and why |
 
 ## Architecture
 
@@ -35,6 +36,7 @@ Speak.app
 ├─ DictationController  @Observable @MainActor coordinator
 ├─ History              JSON file in Application Support, last 100 items (text only, no audio)
 ├─ Updater              Sparkle, only when the build has a feed URL
+├─ Telemetry            anonymous daily usage report (counts in SpeakCore/UsageStats), only when the build has an endpoint
 └─ UI                   PillPanel (NSPanel + SwiftUI glass), MenuBarExtra (status, recent items to copy), Settings, Setup
 ```
 
@@ -55,6 +57,8 @@ Speak.app
 - [x] Sparkle signing key made (private key in the Keychain, backed up) and `FEED_URL` / `UPDATE_KEY` /
       `DOWNLOADS_URL` filled in `Tools/release.sh`
 - [x] First release: 0.1 (build 25) notarized, on GitHub Releases, feed live at `stoupe.github.io/speak/appcast.xml`
+- [x] Anonymous usage stats: app, opt-in screens, README table (kept in step by a test), Worker + D1 deployed,
+      `Tools/stats.sh`
 - [ ] Turn on GitHub Sponsors (the site's Sponsor link and `.github/FUNDING.yml` already point
       at `Stoupe`; the star count in `site/stars.js` stays hidden until the repo has `MIN_STARS`)
 - [ ] Landing page (`site/`): self-host the fonts (GitHub links are in; they assume `Stoupe/speak` is public)
@@ -103,3 +107,9 @@ Things learned the hard way, on an M1 with 8 GB:
   the download check and the appcast PR in that order. The build number stays the commit count on `main`: it only
   grows, whatever the merge style, since force pushes are blocked; the script also refuses a build that isn't higher
   than the newest `sparkle:version` in the appcast.
+- Usage stats server (2026-11-06): `npm i -g cf` gave 0.15.0 the day before 1.0 betas became `latest`; the 1.0 betas
+  have `cf init` and `cloudflare.config.ts`, so check `cf --version`. Cron triggers fail to deploy until the account
+  has a workers.dev subdomain, even with `workersDev: false`, so old reports are deleted on each insert instead.
+  `cf`/Wrangler drop `.wrangler/cache/cf.json` in whatever folder they run in, holding the request's location (city,
+  postcode): it's gitignored. The Settings form has a fixed height (it doesn't scroll); the usage stats section's
+  110 pt was measured by rendering with the Debug-only `-snapshot` (see `Speak/Demo/Snapshot.swift`).

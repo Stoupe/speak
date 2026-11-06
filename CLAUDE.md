@@ -9,6 +9,9 @@ architecture and to-do list. Keep it current as work lands, and add anything lea
 - `Speak/` — app target (folder-synced; new files are picked up automatically): event tap, audio capture,
   paste insertion, pill panel, menu, settings.
 - `Bench/polish-cases.json` — raw → expected cases for prompt tuning.
+- `server/telemetry/` — Cloudflare Worker + D1 that receives the anonymous usage report (`cf` CLI, not Wrangler;
+  see its README). The report format lives in `SpeakCore/UsageStats.swift`; tests keep it in step with the README's
+  "Usage stats" table and the server's accepted fields, so change all three together.
 - `Speak/Demo/` — Debug-only scripted scenes for README captures: mock backdrops (terminal, email) and a
   player that drives the real pill. Captured by `Tools/demo.sh`.
 - `site/` — landing page: plain HTML + CSS (+ `demo.js` for the hero demo, `waves.js` for the headline waveforms,
@@ -35,6 +38,10 @@ Tools/release.sh --version 0.3 --resume --publish --notes notes.md   # after not
 Tools/demo.sh terminal   # GIF + MP4; also: card, menu (PNG)
 # Sparkle update test: old + new dry-run builds, throwaway key, appcast served on localhost
 Tools/update-test.sh
+# Usage stats summary from the live database (read-only; needs cf signed in)
+Tools/stats.sh [days]
+# Render setup/usage stats/Settings views to PNGs offscreen and quit (Debug build; no windows, mic or key tap)
+build/DerivedData/Build/Products/Debug/Speak.app/Contents/MacOS/Speak -snapshot /tmp/speak-snapshot
 ```
 
 ## Rules
@@ -57,5 +64,8 @@ Tools/update-test.sh
 - Sparkle updates are on only when a build gets `SPEAK_FEED_URL` / `SPEAK_UPDATE_KEY` (from `release.sh`). Keep Xcode
   and `install.sh` builds without them, so a dev build never updates itself to a release. The private EdDSA key
   lives only in the maintainer's Keychain; never print, export or commit it.
+- Usage stats are sent only by release builds (`release.sh` sets `SPEAK_TELEMETRY_URL`, like the Sparkle feed) and
+  only after the choice has been shown. Never add a field without adding it to the README table, and never send
+  text, app names or an identifier.
 - Engines stay behind `Transcriber` / `TextPolisher` protocols; don't add cloud code until planned.
 - Check SDK `.swiftinterface` files for macOS 26/27 APIs rather than guessing.

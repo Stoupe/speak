@@ -1,10 +1,11 @@
 #!/bin/zsh
 # Builds a shareable, notarized Speak.zip.
 #
-#   Tools/release.sh --dry-run [--version 0.3] [--build 7] [--feed URL --update-key KEY]
+#   Tools/release.sh --dry-run [--version 0.3] [--build 7] [--feed URL --update-key KEY] [--telemetry URL]
 #       Archive + export signed with your local Apple Development certificate, then run the same checks
 #       notarization cares about. Nothing is sent to Apple and no certificates are created.
 #       --feed/--update-key turn on Sparkle updates in the build (Tools/update-test.sh uses this).
+#       Dry-run builds send no usage stats unless --telemetry gives them an endpoint.
 #
 #   Tools/release.sh [--version 0.3] [--notary-profile speak-notary] [--publish [--notes FILE]]
 #       The real thing: Developer ID signing (Xcode may create a cloud-managed Developer ID certificate on
@@ -41,6 +42,9 @@ NOTARY_PROFILE="speak-notary"
 FEED_URL="https://stoupe.github.io/speak/appcast.xml"         # published from site/appcast.xml
 UPDATE_KEY="PFlseSBc4KrnvY+QuYNdbd5iJ2MMhkNQBJR2VPyM57I="     # public EdDSA key: generate_keys -p (private key: Keychain, backup in 1Password)
 DOWNLOADS_URL="https://github.com/Stoupe/speak/releases/download"  # the release tag is appended
+# Anonymous usage stats (Speak/App/Telemetry.swift, server/telemetry). Like FEED_URL, every release keeps it forever.
+RELEASE_TELEMETRY_URL="https://speak-telemetry.stoupe.dev/v1/report"
+TELEMETRY_URL=""
 
 while (( $# )); do
     case "$1" in
@@ -52,6 +56,7 @@ while (( $# )); do
         --build) BUILD="$2"; shift ;;
         --feed) FEED_URL="$2"; shift ;;
         --update-key) UPDATE_KEY="$2"; shift ;;
+        --telemetry) TELEMETRY_URL="$2"; shift ;;
         --notary-profile) NOTARY_PROFILE="$2"; shift ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
@@ -71,6 +76,8 @@ confirm() {
 }
 
 $DRY_RUN && { $PUBLISH || $RESUME; } && fail "--dry-run can't be combined with --publish or --resume."
+$DRY_RUN || [[ -z "$TELEMETRY_URL" ]] || fail "--telemetry is for dry runs; releases always use $RELEASE_TELEMETRY_URL."
+$DRY_RUN || TELEMETRY_URL="$RELEASE_TELEMETRY_URL"
 [[ -z "$NOTES" ]] || $PUBLISH || fail "--notes only applies with --publish."
 [[ -z "$NOTES" || -f "$NOTES" ]] || fail "No release notes at $NOTES."
 
@@ -151,7 +158,7 @@ xcodebuild archive \
     -destination "generic/platform=macOS" \
     -archivePath "$OUT/Speak.xcarchive" \
     MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" \
-    SPEAK_FEED_URL="$FEED_URL" SPEAK_UPDATE_KEY="$UPDATE_KEY" \
+    SPEAK_FEED_URL="$FEED_URL" SPEAK_UPDATE_KEY="$UPDATE_KEY" SPEAK_TELEMETRY_URL="$TELEMETRY_URL" \
     -quiet
 ok "Archived to $OUT/Speak.xcarchive"
 
@@ -202,6 +209,8 @@ INFO="$APP/Contents/Info.plist"
 [[ "$(plutil -extract SUFeedURL raw -o - "$INFO")" == "$FEED_URL" ]] || fail "SUFeedURL doesn't match FEED_URL"
 [[ "$(plutil -extract SUPublicEDKey raw -o - "$INFO")" == "$UPDATE_KEY" ]] || fail "SUPublicEDKey doesn't match UPDATE_KEY"
 if [[ -n "$FEED_URL" ]]; then ok "Updates on: $FEED_URL"; else print -P "%F{yellow}!%f Updates off (no feed URL)"; fi
+[[ "$(plutil -extract SpeakTelemetryURL raw -o - "$INFO")" == "$TELEMETRY_URL" ]] || fail "SpeakTelemetryURL doesn't match TELEMETRY_URL"
+if [[ -n "$TELEMETRY_URL" ]]; then ok "Usage stats endpoint: $TELEMETRY_URL"; else print -P "%F{yellow}!%f Usage stats off (no endpoint)"; fi
 [[ "$SIGNATURE" == *"Timestamp="* ]] || print -P "%F{yellow}!%f No secure timestamp (expected for a dry run; Developer ID export adds one)"
 if $DRY_RUN; then
     [[ "$ENTITLEMENTS" == *"get-task-allow"* ]] && print -P "%F{yellow}!%f Debug entitlement present (expected for a dry run; Developer ID export removes it)"
